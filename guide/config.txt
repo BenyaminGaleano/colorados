@@ -1,0 +1,6 @@
+1. En vez de ejercutar el comando ~/.bashrc decir que editen ese archivo.
+2. un hint o algo de que deben de dar permiso de ejecución al archivo pintos.
+3. en vez de utilizar pwd en la raíz para sacar un path exclusivo para cada máquina
+utilizar esto:
+    $ENV{"HOME"} . '/pintos/threads/build/kernel.bin'
+así el nombre de la máquina no influye en el archivo
