@@ -1,5 +1,6 @@
 #include "threads/thread.h"
 #include <debug.h>
+#include <list.h>
 #include <stddef.h>
 #include <random.h>
 #include <stdio.h>
@@ -23,6 +24,9 @@
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
+
+/* List of pending threads (it isn't zoom xd) */
+static struct list waiting_room;
 
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
@@ -85,12 +89,13 @@ static tid_t allocate_tid (void);
    It is not safe to call thread_current() until this function
    finishes. */
 void
-thread_init (void) 
+thread_init (void)
 {
   ASSERT (intr_get_level () == INTR_OFF);
 
   lock_init (&tid_lock);
   list_init (&ready_list);
+  list_init (&waiting_room);
   list_init (&all_list);
 
   /* Set up a thread structure for the running thread. */
@@ -98,6 +103,39 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+}
+
+/* Hey, Here's a colorados code */
+void clean_waiting_room(int64_t current_ticks)
+{
+  struct list_elem *thritem = list_begin(&waiting_room);
+  struct list_elem *endthr = list_end(&waiting_room);
+  struct thread *thread;
+
+  while (thritem != endthr) {
+    thread = list_entry(thritem, struct thread, elem);
+
+    thritem = list_next(thritem);
+
+    if(thread->sleep_until <= current_ticks) {
+      list_remove(thritem);
+      thread_unblock(thread);
+    }
+  }
+}
+
+void to_waiting_room(int64_t ticks)
+{
+  enum intr_level old_level;
+  old_level = intr_disable();
+
+  struct thread *cthread = thread_current();
+  cthread->sleep_until = timer_ticks() + ticks;
+
+  list_push_back(&waiting_room, &cthread->elem);
+  thread_block();
+
+  intr_set_level(old_level);
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
