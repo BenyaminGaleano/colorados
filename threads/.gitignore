@@ -1,3 +1,5 @@
 build
 bochsrc.txt
 bochsout.txt
+# para engañar a emacs ajjaja
+threads/
