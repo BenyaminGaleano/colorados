@@ -115,11 +115,11 @@ void clean_waiting_room(int64_t current_ticks)
   while (thritem != endthr) {
     thread = list_entry(thritem, struct thread, elem);
 
-    thritem = list_next(thritem);
-
     if(thread->sleep_until <= current_ticks) {
-      list_remove(thritem);
+      thritem = list_remove(thritem);
       thread_unblock(thread);
+    } else {
+      thritem = list_next(thritem);
     }
   }
 }
