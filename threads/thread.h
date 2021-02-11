@@ -144,4 +144,6 @@ int thread_get_load_avg (void);
 void to_waiting_room (int64_t ticks);
 void clean_waiting_room (int64_t current_ticks);
 
+bool sort_list (struct list_elem * a, struct list_elem *b, void * aux);
+
 #endif /* threads/thread.h */

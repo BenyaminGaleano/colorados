@@ -275,7 +275,13 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  if (!thread_mlfqs)
+  {
+      list_insert_ordered (&ready_list, &t->elem, sort_list, NULL);
+  } else
+  {
+      list_push_back (&ready_list, &t->elem);
+  }
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -334,6 +340,12 @@ thread_exit (void)
   NOT_REACHED ();
 }
 
+bool
+sort_list (struct list_elem * a, struct list_elem *b, void * aux)
+{
+  return list_entry(a, struct thread, elem) ->priority > list_entry(b, struct thread, elem) ->priority;
+}
+
 /* Yields the CPU.  The current thread is not put to sleep and
    may be scheduled again immediately at the scheduler's whim. */
 void
@@ -345,8 +357,22 @@ thread_yield (void)
   ASSERT (!intr_context ());
 
   old_level = intr_disable ();
-  if (cur != idle_thread)
-    list_push_back (&ready_list, &cur->elem);
+  if (!thread_mlfqs)
+  {
+    if (cur != idle_thread)
+    {
+      struct thread *t = list_entry(list_begin(&ready_list), struct thread, elem);
+      if (t->priority < cur->priority)
+        list_push_front (&ready_list, &cur->elem);
+      else {
+        list_insert_ordered (&ready_list, &cur->elem, sort_list, NULL); 
+      }
+    }
+  } else
+  {
+    if (cur != idle_thread)
+      list_push_back (&ready_list, &cur->elem);
+  }
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
