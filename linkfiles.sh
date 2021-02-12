@@ -14,6 +14,7 @@ ln -rs threads ../devices/threads
 ln -rs *.h ../lib/kernel/threads
 ln -rs ../lib/kernel/threads/ ../lib/kernel/threads/threads
 cd ..
+ln -rs ./threads tests/threads/
 
 # generando enlaces a las cabeceras para devices
 echo -e '\n\e[32mEnlaces para devices\e[0m\n'
@@ -43,4 +44,10 @@ echo -e '\n\e[32mEnlaces para lib/user/\e[0m\n'
 cd ./lib/user/
 
 cd ../..
+
+# generando enlaces a las cabeceras para test/threads
+echo -e '\n\e[32mEnlaces para devices\e[0m\n'
+echo ''
+ln -rs tests tests/threads
+
 
