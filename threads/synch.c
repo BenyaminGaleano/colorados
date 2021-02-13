@@ -62,7 +62,7 @@ void
 sema_down (struct semaphore *sema) 
 {
   enum intr_level old_level;
-
+  
   ASSERT (sema != NULL);
   ASSERT (!intr_context ());
 
@@ -73,11 +73,13 @@ sema_down (struct semaphore *sema)
       list_push_back (&sema->waiters, &current_thread->elem);
       if(threadblock != NULL)
       {
-        if(threadblock->priority < thread_get_priority())
+        /*if(threadblock->priority < thread_get_priority())
         {
           threadblock->priority = thread_get_priority();
         }
-        threadblock = NULL;
+        threadblock = NULL;*/
+        get_max_thread_priority(threadblock); 
+        sort_list_by_priority();
       }
       thread_block ();
     }

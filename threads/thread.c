@@ -138,6 +138,49 @@ void to_waiting_room(int64_t ticks)
   intr_set_level(old_level);
 }
 
+void propagate_priority(struct thread *t)
+{
+  if(t->locked_me!=NULL)
+  {
+    if (t->priority>t->locked_me->priority)
+    {
+      t->locked_me->priority= t->priority;
+      propagate_priority(t->locked_me);
+    }
+  }
+}
+void sort_list_by_priority(void){
+  /*struct list_elem *iter = list_begin(&ready_list); 
+  
+  /*while (iter!=list_end(&ready_list))
+  {
+    get_max_thread_priority(list_entry(iter, struct thread, elem));
+  }*/
+  list_sort(&ready_list,sort_list,NULL);
+}
+
+bool max_comparator(struct list_elem * a, struct list_elem *b, void * aux)
+{
+  struct thread *t1=list_entry(a, struct thread, elem);
+  struct thread *t2=list_entry(b, struct thread, elem);
+  get_max_thread_priority(t1);
+  get_max_thread_priority(t2);
+  return t1->priority<t2->priority;
+}
+
+void get_max_thread_priority(struct thread *t){
+  struct list_elem *iter = list_begin(&t->locks); 
+  struct thread *max;
+  
+  while (iter!=list_end(&t->locks))
+  {
+    max= list_entry(list_max(&list_entry(iter, struct lock, elem)->semaphore.waiters, max_comparator, NULL ), struct thread, elem);
+    if (t->priority<max->priority)
+    {
+      t->priority=max->priority;
+    }
+  }
+}
 /* Starts preemptive thread scheduling by enabling interrupts.
    Also creates the idle thread. */
 void
@@ -260,7 +303,7 @@ thread_block (void)
   struct thread *current_thread = thread_current();
   if (!thread_mlfqs)
   {
-    list_sort(&ready_list,sort_list,NULL);
+    sort_list_by_priority();
   }
   current_thread->status = THREAD_BLOCKED;
   schedule ();
@@ -565,6 +608,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->real_priority = priority;
   t->magic = THREAD_MAGIC;
+  list_init(&t->locks);
+  t->locked_me=NULL;
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
