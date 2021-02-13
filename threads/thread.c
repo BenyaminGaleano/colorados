@@ -238,7 +238,7 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
-  if(priority > thread_get_priority())
+  if(priority > thread_get_priority() && !thread_mlfqs)
   {
     thread_yield();
   }
@@ -286,14 +286,13 @@ thread_unblock (struct thread *t)
   if (!thread_mlfqs)
   {
       list_insert_ordered (&ready_list, &t->elem, sort_list, NULL);
-      t->status = THREAD_READY;
-      
   } else
   {
       list_push_back (&ready_list, &t->elem);
-      t->status = THREAD_READY;
   }
+  t->status = THREAD_READY;
   intr_set_level (old_level);
+  
   /*
   if(!thread_mlfqs)
   {
