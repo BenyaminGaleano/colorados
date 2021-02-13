@@ -106,6 +106,13 @@ thread_init (void)
 }
 
 /* Hey, Here's a colorados code */
+void yield_if_iam_manco(int priority)
+{
+  if (priority > thread_get_priority() && !thread_mlfqs) {
+    thread_yield();
+  }
+}
+
 void clean_waiting_room(int64_t current_ticks)
 {
   struct list_elem *thritem = list_begin(&waiting_room);
@@ -142,10 +149,9 @@ void propagate_priority(struct thread *t)
 {
   if(t->locked_me!=NULL)
   {
-    if (t->priority>t->locked_me->priority)
-    {
-      t->locked_me->priority= t->priority;
-      propagate_priority(t->locked_me);
+    if (t->priority > t->locked_me->holder->priority) {
+      t->locked_me->holder->priority = t->priority;
+      propagate_priority(t->locked_me->holder);
     }
   }
 }
@@ -165,20 +171,22 @@ bool max_comparator(struct list_elem * a, struct list_elem *b, void * aux)
   struct thread *t2=list_entry(b, struct thread, elem);
   get_max_thread_priority(t1);
   get_max_thread_priority(t2);
-  return t1->priority<t2->priority;
+  return t1->priority < t2->priority;
 }
 
 void get_max_thread_priority(struct thread *t){
   struct list_elem *iter = list_begin(&t->locks); 
   struct thread *max;
-  
+
   while (iter!=list_end(&t->locks))
   {
     max= list_entry(list_max(&list_entry(iter, struct lock, elem)->semaphore.waiters, max_comparator, NULL ), struct thread, elem);
-    if (t->priority<max->priority)
+
+    if (t->priority < max->priority)
     {
-      t->priority=max->priority;
+      t->priority = max->priority;
     }
+    iter = list_next(iter);
   }
 }
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -281,10 +289,11 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
-  if(priority > thread_get_priority() && !thread_mlfqs)
-  {
-    thread_yield();
-  }
+  yield_if_iam_manco(priority);
+  /* if(priority > thread_get_priority() && !thread_mlfqs) */
+  /* { */
+  /*   thread_yield(); */
+  /* } */
   return tid;
 }
 
@@ -335,7 +344,7 @@ thread_unblock (struct thread *t)
   }
   t->status = THREAD_READY;
   intr_set_level (old_level);
-  
+
   /*
   if(!thread_mlfqs)
   {
@@ -471,7 +480,7 @@ thread_set_priority (int new_priority)
   while (e != list_end(&ready_list))
   {
     t = list_entry(e, struct thread, elem);
-    
+
     if (t->priority > new_priority)
     {
       thread_yield();
@@ -498,7 +507,7 @@ thread_set_nice (int nice UNUSED)
 
 /* Returns the current thread's nice value. */
 int
-thread_get_nice (void) 
+thread_get_nice (void)
 {
   /* Not yet implemented. */
   return 0;

@@ -91,7 +91,8 @@ struct thread
     int real_priority;                  /* Priority with donation */
     struct list_elem allelem;           /* List element for all threads list. */
     struct list locks;             /* List of locks of a thread*/ 
-    struct thread * locked_me;         /* Pointer that references the thread who locks the current thread*/
+    struct lock *locked_me;         /* Pointer that references the thread who locks the current thread
+                                           in particular lock*/
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
@@ -146,11 +147,11 @@ int thread_get_load_avg (void);
 /* Hey, Here's a colorados code */
 void to_waiting_room (int64_t ticks);
 void clean_waiting_room (int64_t current_ticks);
-void sort_list_by_priority(void);         
+void sort_list_by_priority(void);
 void get_max_thread_priority(struct thread *t);
 void propagate_priority(struct thread *t);
-bool max_comparator (struct list_elem * a, struct list_elem *b, void * aux); 
-
+void yield_if_iam_manco(int priority);
+bool max_comparator (struct list_elem * a, struct list_elem *b, void * aux);
 bool sort_list (struct list_elem * a, struct list_elem *b, void * aux);
 
 #endif /* threads/thread.h */
