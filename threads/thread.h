@@ -90,13 +90,12 @@ struct thread
     int priority;                       /* Priority. */
     int real_priority;                  /* Priority with donation */
     struct list_elem allelem;           /* List element for all threads list. */
-    struct list locks;             /* List of locks of a thread*/ 
-    struct lock *locked_me;         /* Pointer that references the thread who locks the current thread
-                                           in particular lock*/
+    struct list locks;                  /* List of locks of a thread*/
+    struct lock *locked_me;             /* Pointer that references the lock who locks the current thread */
+
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
-   
     int64_t sleep_until;
 
 #ifdef USERPROG
