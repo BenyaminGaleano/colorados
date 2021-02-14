@@ -151,7 +151,7 @@ void sort_list_by_priority(void);
 void get_max_thread_priority(struct thread *t);
 void propagate_priority(struct thread *t);
 void yield_if_iam_manco(int priority);
-bool max_comparator (struct list_elem * a, struct list_elem *b, void * aux);
-bool sort_list (struct list_elem * a, struct list_elem *b, void * aux);
+bool max_comparator (const struct list_elem * a, const struct list_elem *b, void * aux);
+bool sort_list (const struct list_elem * a, const struct list_elem *b, void * aux);
 
 #endif /* threads/thread.h */
