@@ -157,7 +157,7 @@ void propagate_priority(struct thread *t)
 }
 void sort_list_by_priority(void){
   /*struct list_elem *iter = list_begin(&ready_list); 
-  
+
   /*while (iter!=list_end(&ready_list))
   {
     get_max_thread_priority(list_entry(iter, struct thread, elem));
