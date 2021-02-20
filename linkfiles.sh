@@ -5,24 +5,17 @@ inclDir=/usr/local/include/
 
 # generando enlaces a las cabeceras para threads
 echo -e '\n\e[32mEnlaces para threads\e[0m\n'
-cd ./threads/
-mkdir -p threads
-mkdir -p ../lib/kernel/threads
-ln -rs *.h threads
-ln -rs threads threads/threads
-ln -rs threads ../devices/threads
-ln -rs *.h ../lib/kernel/threads
-ln -rs ../lib/kernel/threads/ ../lib/kernel/threads/threads
-cd ..
-ln -rs ./threads tests/threads/
+ln -rs threads threads/
+ln -rs threads devices/
+ln -rs threads lib/kernel/
+ln -rs threads tests/threads/
+ln -rs devices threads/
+
 
 # generando enlaces a las cabeceras para devices
 echo -e '\n\e[32mEnlaces para devices\e[0m\n'
 echo ''
-cd ./devices/
-mkdir -p devices
-ln -rs *.h devices
-cd ..
+ln -rs devices devices/
 
 # generando enlaces a las cabeceras del sistema
 echo -e '\n\e[32mEnlaces para lib\e[0m\n'

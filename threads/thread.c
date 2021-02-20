@@ -12,6 +12,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "devices/timer.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -156,12 +157,6 @@ void propagate_priority(struct thread *t)
   }
 }
 void sort_list_by_priority(void){
-  /*struct list_elem *iter = list_begin(&ready_list); 
-
-  /*while (iter!=list_end(&ready_list))
-  {
-    get_max_thread_priority(list_entry(iter, struct thread, elem));
-  }*/
   list_sort(&ready_list,sort_list,NULL);
 }
 
@@ -169,23 +164,37 @@ bool max_comparator(const struct list_elem * a, const struct list_elem *b, void 
 {
   struct thread *t1=list_entry(a, struct thread, elem);
   struct thread *t2=list_entry(b, struct thread, elem);
+
+  if (t1 == idle_thread) {
+    return 0;
+  }
+
+  if (t2 == idle_thread) {
+    return 1;
+  }
+
   get_max_thread_priority(t1);
   get_max_thread_priority(t2);
   return t1->priority < t2->priority;
 }
 
 void get_max_thread_priority(struct thread *t){
-  struct list_elem *iter = list_begin(&t->locks); 
+  struct list_elem *iter = list_begin(&t->locks);
   struct thread *max;
+  struct list *waiters;
 
   while (iter!=list_end(&t->locks))
   {
-    max= list_entry(list_max(&list_entry(iter, struct lock, elem)->semaphore.waiters, max_comparator, NULL ), struct thread, elem);
+    waiters = &list_entry(iter, struct lock, elem)->semaphore.waiters;
 
-    if (t->priority < max->priority)
-    {
-      t->priority = max->priority;
+    if (!list_empty(waiters)) {
+      max = list_entry(list_max(waiters, max_comparator, NULL), struct thread,
+                       elem);
+      if (t->priority < max->priority) {
+        t->priority = max->priority;
+      }
     }
+
     iter = list_next(iter);
   }
 }
