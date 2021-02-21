@@ -5,6 +5,7 @@
 #include <random.h>
 #include <stdio.h>
 #include <string.h>
+#include "fixed-point.h"
 #include "threads/flags.h"
 #include "threads/interrupt.h"
 #include "threads/intr-stubs.h"
@@ -99,14 +100,46 @@ thread_init (void)
   list_init (&waiting_room);
   list_init (&all_list);
 
+  load_avg = 0;
+
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
+
+  initial_thread->nice = 0;
+  initial_thread->recent_cpu = 0;
+
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
 }
 
 /* Hey, Here's a colorados code */
+void update_priority(struct thread *t)
+{
+  t->priority = PRI_MAX - pq_to_int((t->recent_cpu / 4)) - (t->nice * 2);
+}
+
+void update_recent_cpu(void)
+{
+  struct thread *cur = thread_current();
+  cur->recent_cpu = pq_mul(pq_div((2 * load_avg), (2 * load_avg + F)), cur->recent_cpu) + int_to_pq(cur->nice);
+}
+
+void update_load_avg(void)
+{
+  int run_val = thread_current() != idle_thread ? 1 : 0;
+  load_avg = (59 * load_avg)/60 + int_to_pq(run_val + list_size(&ready_list)) / 60;
+}
+
+void increment_recent_cpu(void)
+{
+  struct thread *cur = thread_current();
+
+  if (idle_thread != cur) {
+    cur->recent_cpu = cur->recent_cpu + F;
+  }
+}
+
 void yield_if_iam_manco(int priority)
 {
   if (priority > thread_get_priority() && !thread_mlfqs) {
@@ -164,14 +197,6 @@ bool max_comparator(const struct list_elem * a, const struct list_elem *b, void 
 {
   struct thread *t1=list_entry(a, struct thread, elem);
   struct thread *t2=list_entry(b, struct thread, elem);
-
-  if (t1 == idle_thread) {
-    return 0;
-  }
-
-  if (t2 == idle_thread) {
-    return 1;
-  }
 
   get_max_thread_priority(t1);
   get_max_thread_priority(t2);
@@ -298,6 +323,10 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
+  if (thread_mlfqs) {
+    t->recent_cpu = thread_current()->recent_cpu;
+    t->nice = thread_current()->nice;
+  }
   yield_if_iam_manco(priority);
   /* if(priority > thread_get_priority() && !thread_mlfqs) */
   /* { */
@@ -505,39 +534,38 @@ int
 thread_get_priority (void) 
 {
   struct thread *t = thread_current();
-  get_max_thread_priority(t);
+  if (!thread_mlfqs) {
+    get_max_thread_priority(t);
+  }
   return t->priority;
 }
 
 /* Sets the current thread's nice value to NICE. */
 void
-thread_set_nice (int nice UNUSED) 
+thread_set_nice (int nice) 
 {
-  /* Not yet implemented. */
+  struct thread *t = thread_current();
+  t->nice = nice;
+  update_priority(t);
 }
 
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void)
 {
-  /* Not yet implemented. */
-  return 0;
+  return thread_current()->nice;
 }
 
 /* Returns 100 times the system load average. */
-int
-thread_get_load_avg (void) 
-{
-  /* Not yet implemented. */
-  return 0;
+int thread_get_load_avg(void) {
+  return pq_to_int(round_pq(load_avg * 100));
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int
 thread_get_recent_cpu (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return pq_to_int(round_pq(thread_current()->recent_cpu * 100));
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
