@@ -158,7 +158,8 @@ bool max_comparator (const struct list_elem * a, const struct list_elem *b, void
 bool sort_list (const struct list_elem * a, const struct list_elem *b, void * aux);
 /* MLFQS */
 void increment_recent_cpu(void);
-void update_priority(struct thread *t);
+void update_priority(struct thread *t, void *aux);
+void update_priority_forall(void);
 void update_recent_cpu(void);
 void update_load_avg(void);
 

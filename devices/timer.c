@@ -182,7 +182,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
     }
 
     if (ticks % 4 == 0) {
-      update_priority(thread_current());
+      update_priority_forall();
     }
 
   }

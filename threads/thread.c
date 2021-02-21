@@ -114,15 +114,29 @@ thread_init (void)
 }
 
 /* Hey, Here's a colorados code */
-void update_priority(struct thread *t)
+void update_priority(struct thread *t, void *aux UNUSED)
 {
-  t->priority = PRI_MAX - pq_to_int((t->recent_cpu / 4)) - (t->nice * 2);
+  if (t != idle_thread)
+    t->priority = PRI_MAX - pq_to_int((t->recent_cpu / 4)) - (t->nice * 2);
+}
+
+void update_priority_forall(void)
+{
+  thread_foreach(update_priority, NULL);
+}
+
+void update_recent_cpu_for(struct thread *t, void *aux UNUSED) {
+  if (t == idle_thread) {
+    return;
+  }
+
+  t->recent_cpu = pq_mul(pq_div((2 * load_avg), (2 * load_avg + F)), t->recent_cpu) + int_to_pq(t->nice);
 }
 
 void update_recent_cpu(void)
 {
-  struct thread *cur = thread_current();
-  cur->recent_cpu = pq_mul(pq_div((2 * load_avg), (2 * load_avg + F)), cur->recent_cpu) + int_to_pq(cur->nice);
+  /* struct thread *cur = thread_current(); */
+  thread_foreach(update_recent_cpu_for, NULL);
 }
 
 void update_load_avg(void)
@@ -546,7 +560,7 @@ thread_set_nice (int nice)
 {
   struct thread *t = thread_current();
   t->nice = nice;
-  update_priority(t);
+  update_priority(t, NULL);
 }
 
 /* Returns the current thread's nice value. */
