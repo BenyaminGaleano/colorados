@@ -126,7 +126,9 @@ void update_priority(struct thread *t, void *aux UNUSED)
     return;
   }
 
-  t->priority = PRI_MAX - pq_to_int((t->recent_cpu / 4)) - (t->nice * 2);
+  int old_priority = t->priority;
+
+  t->priority = PRI_MAX - pq_to_int(t->recent_cpu) / 4 - (t->nice * 2);
 
   if (t->priority < 0) {
     t->priority = 0;
@@ -134,7 +136,7 @@ void update_priority(struct thread *t, void *aux UNUSED)
     t->priority = 63;
   }
 
-  if (t->status == THREAD_READY) {
+  if (t->status == THREAD_READY && old_priority != t->priority) {
     list_remove(&t->elem);
     list_push_back(mlfqs_queues + t->priority, &t->elem);
   }
@@ -184,6 +186,8 @@ void update_load_avg(void)
 
   /* load_avg = (59 * load_avg)/60 + int_to_pq(run_val + list_size(&ready_list)) / 60; */
   load_avg = (59 * load_avg) / 60 + int_to_pq(run_val) / 60;
+
+  /* load_avg = pq_mul(pq_div(int_to_pq(59), int_to_pq(60)), load_avg) + int_to_pq(run_val) / 60; */
 }
 
 void increment_recent_cpu(void)
@@ -379,8 +383,9 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
   if (thread_mlfqs) {
-    t->recent_cpu = thread_current()->recent_cpu;
-    t->nice = thread_current()->nice;
+    struct thread *t = thread_current();
+    t->recent_cpu = t->recent_cpu;
+    t->nice = t->nice;
   }
   yield_if_iam_manco(priority);
   /* if(priority > thread_get_priority() && !thread_mlfqs) */

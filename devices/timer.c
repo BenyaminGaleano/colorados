@@ -176,15 +176,14 @@ timer_interrupt (struct intr_frame *args UNUSED)
   if (thread_mlfqs) {
     increment_recent_cpu();
 
-    if (ticks % TIMER_FREQ  == 0) {
-      update_recent_cpu();
-      update_load_avg();
-    }
-
     if (ticks % 4 == 0) {
       update_priority_forall();
     }
 
+    if (ticks % TIMER_FREQ  == 0) {
+      update_load_avg();
+      update_recent_cpu();
+    }
   }
 }
 
