@@ -30,6 +30,8 @@ static struct list ready_list;
 /* List of pending threads (it isn't zoom xd) */
 static struct list waiting_room;
 
+static struct list mlfqs_queues[PRI_MAX + 1];
+
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
@@ -99,6 +101,10 @@ thread_init (void)
   list_init (&ready_list);
   list_init (&waiting_room);
   list_init (&all_list);
+
+  for (int pri = PRI_MIN; pri <= PRI_MAX; pri++) {
+    list_init(mlfqs_queues + pri);
+  }
 
   load_avg = 0;
 
