@@ -179,10 +179,7 @@ void update_load_avg(void)
   struct list *queue = mlfqs_queues + PRI_MAX;
 
   while(queue >= mlfqs_queues) {
-    printf("entro %lu\n", queue - mlfqs_queues);
     run_val += list_size(queue);
-    printf("paso %lu\n", queue -mlfqs_queues);
-
     queue--;
   }
 
