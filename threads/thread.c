@@ -122,8 +122,35 @@ thread_init (void)
 /* Hey, Here's a colorados code */
 void update_priority(struct thread *t, void *aux UNUSED)
 {
-  if (t != idle_thread)
-    t->priority = PRI_MAX - pq_to_int((t->recent_cpu / 4)) - (t->nice * 2);
+  if (t == idle_thread) {
+    return;
+  }
+
+  t->priority = PRI_MAX - pq_to_int((t->recent_cpu / 4)) - (t->nice * 2);
+
+  if (t->priority < 0) {
+    t->priority = 0;
+  } else if (t->priority > 63) {
+    t->priority = 63;
+  }
+
+  if (t->status == THREAD_READY) {
+    list_remove(&t->elem);
+    list_push_back(mlfqs_queues + t->priority, &t->elem);
+    /* yield_if_iam_manco(t->priority); */
+  }
+
+  /* struct list_elem *iter = list_begin(&all_list); */
+  /* struct thread *th; */
+
+  /* while(iter != list_end(&all_list)) { */
+  /*   th = list_entry(iter, struct thread, allelem); */
+  /*   if (th->status == THREAD_READY && th->priority > t->priority) { */
+  /*     thread_yield(); */
+  /*     break; */
+  /*   } */
+  /*   iter = list_next(iter); */
+  /* } */
 }
 
 void update_priority_forall(void)
@@ -148,7 +175,19 @@ void update_recent_cpu(void)
 void update_load_avg(void)
 {
   int run_val = thread_current() != idle_thread ? 1 : 0;
-  load_avg = (59 * load_avg)/60 + int_to_pq(run_val + list_size(&ready_list)) / 60;
+
+  struct list *queue = mlfqs_queues + PRI_MAX;
+
+  while(queue >= mlfqs_queues) {
+    printf("entro %lu\n", queue - mlfqs_queues);
+    run_val += list_size(queue);
+    printf("paso %lu\n", queue -mlfqs_queues);
+
+    queue--;
+  }
+
+  /* load_avg = (59 * load_avg)/60 + int_to_pq(run_val + list_size(&ready_list)) / 60; */
+  load_avg = (59 * load_avg) / 60 + int_to_pq(run_val) / 60;
 }
 
 void increment_recent_cpu(void)
@@ -162,7 +201,7 @@ void increment_recent_cpu(void)
 
 void yield_if_iam_manco(int priority)
 {
-  if (priority > thread_get_priority() && !thread_mlfqs) {
+  if (priority > thread_get_priority()) {
     thread_yield();
   }
 }
@@ -398,7 +437,8 @@ thread_unblock (struct thread *t)
       list_insert_ordered (&ready_list, &t->elem, sort_list, NULL);
   } else
   {
-      list_push_back (&ready_list, &t->elem);
+      /* list_push_back (&ready_list, &t->elem); */
+      list_push_back(mlfqs_queues + t->priority, &t->elem);
   }
   t->status = THREAD_READY;
   intr_set_level (old_level);
@@ -500,7 +540,8 @@ thread_yield (void)
   } else
   {
     if (cur != idle_thread)
-      list_push_back (&ready_list, &cur->elem);
+      /* list_push_back (&ready_list, &cur->elem); */
+      list_push_back(mlfqs_queues + cur->priority, &cur->elem);
   }
   cur->status = THREAD_READY;
   schedule ();
@@ -705,6 +746,20 @@ alloc_frame (struct thread *t, size_t size)
 static struct thread *
 next_thread_to_run (void) 
 {
+  if (thread_mlfqs) {
+    struct list *queue = mlfqs_queues + PRI_MAX;
+
+    while (queue >= mlfqs_queues) {
+      if (!list_empty(queue)) {
+        return list_entry(list_pop_front(queue), struct thread, elem);
+      }
+      queue--;
+    }
+
+    return idle_thread;
+  }
+
+
   if (list_empty (&ready_list))
     return idle_thread;
   else
