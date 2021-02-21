@@ -137,7 +137,6 @@ void update_priority(struct thread *t, void *aux UNUSED)
   if (t->status == THREAD_READY) {
     list_remove(&t->elem);
     list_push_back(mlfqs_queues + t->priority, &t->elem);
-    /* yield_if_iam_manco(t->priority); */
   }
 
   /* struct list_elem *iter = list_begin(&all_list); */
@@ -605,6 +604,18 @@ thread_set_nice (int nice)
   struct thread *t = thread_current();
   t->nice = nice;
   update_priority(t, NULL);
+
+  struct list_elem *iter = list_begin(&all_list);
+  struct thread *th;
+
+  while(iter != list_end(&all_list)) {
+    th = list_entry(iter, struct thread, allelem);
+    if (th->status == THREAD_READY && th->priority > t->priority) {
+      thread_yield();
+      break;
+    }
+    iter = list_next(iter);
+  }
 }
 
 /* Returns the current thread's nice value. */
