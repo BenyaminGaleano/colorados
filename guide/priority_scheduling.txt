@@ -1,0 +1,9 @@
+Nested Donation
+
+Para el Thread 2 colocar: "Esperando por el lock A"
+Para el Thread 3 colocar: 
+  Está esperando por el Lock A (Directamente)
+  Está esperando por el Lock B (Indirectamente)
+
+Para que el lector cache el contexto.
+
