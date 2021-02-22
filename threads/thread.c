@@ -140,18 +140,6 @@ void update_priority(struct thread *t, void *aux UNUSED)
     list_remove(&t->elem);
     list_push_back(mlfqs_queues + t->priority, &t->elem);
   }
-
-  /* struct list_elem *iter = list_begin(&all_list); */
-  /* struct thread *th; */
-
-  /* while(iter != list_end(&all_list)) { */
-  /*   th = list_entry(iter, struct thread, allelem); */
-  /*   if (th->status == THREAD_READY && th->priority > t->priority) { */
-  /*     thread_yield(); */
-  /*     break; */
-  /*   } */
-  /*   iter = list_next(iter); */
-  /* } */
 }
 
 void update_priority_forall(void)

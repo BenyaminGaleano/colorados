@@ -99,6 +99,8 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
+    uint32_t *pagedir;                  /* Page direction tables */
+
     int64_t sleep_until;
 
 #ifdef USERPROG
