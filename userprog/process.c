@@ -28,6 +28,25 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name) 
 {
+  char *token;
+  char *save_ptr = file_name;
+  char *tokens[] = {};
+  int cont = 0;
+
+  while ((token = strtok_r(file_name, " ", &save_ptr))) {
+    tokens[cont] = token;
+    cont++;
+  }     
+
+  /* change arguments ->
+    first word : file name
+    second word : first argument
+    and so on...
+
+    example: process_execute("grep foo bar") -> run grep passing two arguments foo and bar
+  */
+
+
   char *fn_copy;
   tid_t tid;
 
