@@ -159,3 +159,12 @@ page_fault (struct intr_frame *f)
   kill (f);
 }
 
+/* Hey, Here's a colorados code */
+static int get_user (const uint8_t *uaddr)
+{
+  int result;
+  asm ("movl $1f, %0; movzbl %1, %0; 1:"
+       : "=&a" (result) : "m" (*uaddr));
+  return result;
+}
+
