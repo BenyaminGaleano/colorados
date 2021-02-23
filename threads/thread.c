@@ -383,9 +383,9 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
   if (thread_mlfqs) {
-    struct thread *t = thread_current();
-    t->recent_cpu = t->recent_cpu;
-    t->nice = t->nice;
+    struct thread *tt = thread_current();
+    t->recent_cpu = tt->recent_cpu;
+    t->nice = tt->nice;
   }
   yield_if_iam_manco(priority);
   /* if(priority > thread_get_priority() && !thread_mlfqs) */
