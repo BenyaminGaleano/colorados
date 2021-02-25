@@ -31,6 +31,7 @@ echo -e '\n\e[32mEnlaces para lib/kernel\e[0m\n'
 cd ./lib/kernel/
 sudo ln -rs list.h $inclDir
 sudo ln -rs console.h $inclDir
+sudo ln -rs bitmap.h $inclDir
 cd ../..
 
 
