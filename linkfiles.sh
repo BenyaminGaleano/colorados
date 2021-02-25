@@ -9,6 +9,7 @@ ln -rs threads threads/
 ln -rs threads devices/
 ln -rs threads lib/kernel/
 ln -rs threads tests/threads/
+ln -rs threads userprog/
 ln -rs devices threads/
 
 
