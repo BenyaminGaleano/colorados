@@ -189,7 +189,7 @@ void increment_recent_cpu(void)
 
 void yield_if_iam_manco(int priority)
 {
-  if (priority > thread_get_priority()) {
+  if (!intr_context () && priority > thread_get_priority()) {
     thread_yield();
   }
 }
