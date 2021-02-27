@@ -19,7 +19,9 @@ with open(os.environ['HOME'] + '/%s' % '$SHRC', 'r+') as bfile:
 
     phase = '$1'
     val = re.sub(r'PINTOSPH=".*" # stop@000001', 'PINTOSPH="%s" # stop@000001' % phase, val)
+    bfile.seek(0)
     bfile.write(val)
+    bfile.truncate()
 EOF`
 
 PINTOSPH="$1"
