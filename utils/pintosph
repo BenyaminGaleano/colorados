@@ -1,0 +1,30 @@
+#!/bin/sh
+
+echo -e '\e[32mCambiando de fase...\e[0m'
+
+if [ -n "$BASH_VERSION" ]; then
+SHRC='.bashrc'
+else
+SHRC='.zshrc'
+fi
+
+pintosph=`python <<- EOF
+import re
+import sys
+import os
+
+with open(os.environ['HOME'] + '/%s' % '$SHRC', 'r+') as bfile:
+
+    val = bfile.read()
+
+    phase = '$1'
+    val = re.sub(r'PINTOSPH=".*" # stop@000001', 'PINTOSPH="%s" # stop@000001' % phase, val)
+    bfile.write(val)
+EOF`
+
+PINTOSPH="$1"
+echo -e "\e[32mFase actual: $PINTOSPH\e[0m"
+export PINTOSPH
+
+echo $pintosph
+
