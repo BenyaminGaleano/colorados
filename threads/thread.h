@@ -99,7 +99,7 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
-    uint32_t *pagedir;                  /* Page direction tables */
+    /* uint32_t *pagedir;                  /1* Page direction tables *1/ */
 
     int64_t sleep_until;
 
