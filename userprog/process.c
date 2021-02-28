@@ -28,25 +28,8 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name) 
 {
-  char *token;
-  char *save_ptr = file_name;
-  char *tokens[] = {};
-  int cont = 0;
-
-  while ((token = strtok_r(file_name, " ", &save_ptr))) {
-    tokens[cont] = token;
-    cont++;
-  }     
-
-  /* change arguments ->
-    first word : file name
-    second word : first argument
-    and so on...
-
-    example: process_execute("grep foo bar") -> run grep passing two arguments foo and bar
-  */
-
-
+  char *name = (char *)file_name;
+  char *save_ptr;
   char *fn_copy;
   tid_t tid;
 
@@ -56,9 +39,13 @@ process_execute (const char *file_name)
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
-  
+
+  /** @colorados*/
+  name = strtok_r(name, " ", &save_ptr);
+  /** @colorados*/
+
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (file_name, PRI_MAX, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -73,17 +60,66 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
+  /** @colorados */
+  char *token;
+  char *save_ptr;
+
+  token = strtok_r(file_name, " ", &save_ptr);
+  /** @colorados */
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp);
+  success = load (token, &if_.eip, &if_.esp);
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) 
     thread_exit ();
+
+  /** @colorados */
+  int argc = 1;
+  char **spaux = if_.esp - 130; // 128MB for max args size + free 2 bytes
+  size_t tlen;
+
+  if_.esp -= strlen(token) + 5;
+  strlcpy(if_.esp, token, PGSIZE);
+
+  while ((token = strtok_r(NULL, " ", &save_ptr)) != NULL) {
+    argc++;
+    tlen = strlen(token);
+
+    if_.esp -= tlen + 1;
+    strlcpy(if_.esp, token, PGSIZE);
+    *--spaux = if_.esp;
+  }
+
+  if (argc > 1) {
+    int align = ((int32_t)if_.esp) % 4;
+    align = align == 0 ? 0 : 4 - align;
+
+    if_.esp -= align;
+
+    if_.esp -= 5;               // 1 for convention and 4 for pointer size
+    *((char **)if_.esp) = NULL; // last argument must be NULL
+    char **isp;
+    for (isp = spaux; isp <= spaux + argc; isp++) {
+      if_.esp -= 5;
+      *((char **)if_.esp) = *isp;
+    }
+
+    if_.esp -= 5;
+    *((char ***) if_.esp) = isp; // argv
+
+    if_.esp -= 5;
+    *((int *) if_.esp) = argc;
+
+    if_.esp -= 5;
+    *((int32_t*) if_.esp) = 0;
+  }
+  /** @colorados */
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -238,10 +274,12 @@ load (const char *file_name, void (**eip) (void), void **esp)
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
     goto done;
+
   process_activate ();
 
   /* Open executable file. */
   file = filesys_open (file_name);
+
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
