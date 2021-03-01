@@ -48,10 +48,10 @@ syscall_handler (struct intr_frame *f UNUSED)
   case SYS_CLOSE:
     break;
   default:
+    printf ("system call!\n");
+    thread_exit ();
     break;
   }
-  printf ("system call!\n");
-  thread_exit ();
 }
 //
 void halt(void)
@@ -109,13 +109,17 @@ int write (int fd, const void *buffer, unsigned length)
 
 void seek (int fd, unsigned position)
 {
+  struct file * file;
+  file_seek(file, position); 
 }
 
 unsigned tell (int fd)
 {
+  file_tell(fd);
   return NULL;
 }
 
 void close (int fd)
 {
+  file_close(fd); 
 }
