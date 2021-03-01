@@ -7,6 +7,7 @@
 #include "lib/user/syscall.h"
 #include "userprog/process.h"
 #include "filesys/filesys.h"
+#include "filesys/file.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -88,17 +89,17 @@ bool remove (const char *file)
 
 int open (const char *file)
 {
-  return NULL;
+  return filesys_open(file);
 }
 
 int filesize (int fd)
 {
-  return NULL;
+  return file_length(fd);
 }
 
 int read (int fd, void *buffer, unsigned length)
 {
-  return NULL;
+  return file_read(fd, buffer, length);
 }
 
 int write (int fd, const void *buffer, unsigned length)
