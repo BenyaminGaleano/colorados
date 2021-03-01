@@ -80,6 +80,11 @@ start_process (void *file_name_)
   int argc = 1;
   size_t tlen;
   void *realpage = pagedir_get_page(t->pagedir, PHYS_BASE - PGSIZE) +  PGSIZE;
+  if (realpage==NULL) 
+  {
+    goto free_page;
+  }
+    
   char **spaux = realpage - 130; // 128MB for max args size + free 2 bytes
 
   if_.esp -= strlen(token) + 1;
@@ -126,7 +131,9 @@ start_process (void *file_name_)
   /** @colorados */
 
 
+  
   /* If load failed, quit. */
+  free_page:
   palloc_free_page (file_name);
   if (!success) 
     thread_exit ();
