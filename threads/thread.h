@@ -95,6 +95,9 @@ struct thread
     int nice;                           /* the nice value of thread. */
     struct list locks;                  /* List of locks of a thread*/
     struct lock *locked_me;             /* Pointer that references the lock who locks the current thread */
+    struct thread *father;              /* Pointer that references the father process*/
+    bool estorbo;                       /* Boolean to know if my father is waiting on me*/
+    int exit_status;
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */

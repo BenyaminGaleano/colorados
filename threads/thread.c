@@ -375,6 +375,8 @@ thread_create (const char *name, int priority,
     t->recent_cpu = t->recent_cpu;
     t->nice = t->nice;
   }
+
+  t->father=thread_current();
   yield_if_iam_manco(priority);
   /* if(priority > thread_get_priority() && !thread_mlfqs) */
   /* { */
@@ -720,7 +722,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
   list_init(&t->locks);
   t->locked_me=NULL;
-
+  t->estorbo=0;
+  t->exit_status=0;
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
