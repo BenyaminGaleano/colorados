@@ -18,6 +18,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "userprog/exception.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -26,6 +27,7 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
+
 tid_t
 process_execute (const char *file_name) 
 {
@@ -50,6 +52,15 @@ process_execute (const char *file_name)
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
+}
+
+static int 
+get_user (const uint8_t *uaddr)
+{
+  int result;
+  asm ("movl $1f, %0; movzbl %1, %0; 1:"
+       : "=&a" (result) : "m" (*uaddr));
+  return result;
 }
 
 /* A thread function that loads a user process and starts it
@@ -80,7 +91,8 @@ start_process (void *file_name_)
   int argc = 1;
   size_t tlen;
   void *realpage = pagedir_get_page(t->pagedir, PHYS_BASE - PGSIZE) +  PGSIZE;
-  if (realpage==NULL) 
+  printf("------------------------   %d \n",get_user(realpage-1));
+  if (get_user(realpage-1)==-1) 
   {
     goto free_page;
   }
@@ -138,6 +150,7 @@ start_process (void *file_name_)
   if (!success) 
     thread_exit ();
 
+  printf("A ver si el gfe se esperó o se fue por los cigarros\n");
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -147,7 +160,19 @@ start_process (void *file_name_)
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
   NOT_REACHED ();
 }
-
+//Obtains a thread with the id going on args
+void get_thread_with_id(struct thread *t, void *args)
+{
+  if (**((struct thread***)args)!=NULL)
+  {
+    return;  
+  }
+  if (t->tid==(*((tid_t**)args)[1]))
+  {
+    **((struct thread***)args)=t;
+  }
+  
+}
 /* Waits for thread TID to die and returns its exit status.  If
    it was terminated by the kernel (i.e. killed due to an
    exception), returns -1.  If TID is invalid or if it was not a
@@ -160,12 +185,34 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  for (uint32_t i = 0; i < 0xffff; i++) {
+/*   for (uint32_t i = 0; i < 0xffff; i++) {
     for (uint32_t ii = 0; ii < 0xffff; ii++) {
 
     }
+  } */
+  
+  struct thread *t =NULL;
+  void *args[2];
+  args[0]=&t;
+  args[1]=&child_tid;
+  intr_disable();
+  thread_foreach(get_thread_with_id, args);
+  intr_enable();
+  /*if (t!=NULL)
+  {
+    printf("Nombre %s Patron %s \n", t->name, thread_current()->name);
+  }*/
+  if (t==NULL ||thread_tid()!= t->father->tid || t->estorbo)
+  {
+     return -1;
   }
-  return -1;
+  t->estorbo=1;
+  intr_disable();
+  thread_block();
+  intr_enable();
+  return t->exit_status;
+  //Verifiar que si despierto al papa que este, esté vivo
+ 
 }
 
 /* Free the current process's resources. */

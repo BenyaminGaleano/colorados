@@ -64,6 +64,9 @@ void exit(int status)
   struct thread *current = thread_current();
   //missing condition process parent
   printf ("%s: exit(%d)\n",current->name);
+  current->exit_status=status;
+  thread_unblock(current->father);
+
   thread_exit();
 }
 
