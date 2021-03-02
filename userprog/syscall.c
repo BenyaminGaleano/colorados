@@ -8,6 +8,7 @@
 #include "userprog/process.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
+#include "threads/synch.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -82,17 +83,44 @@ int wait (pid_t pid)
 
 bool create (const char *file, unsigned initial_size)
 {
-  return filesys_create(file, initial_size);
+  struct lock filesys_create_lock;
+  lock_init(&filesys_create_lock);
+
+  lock_acquire(&filesys_create_lock);
+  bool answer = filesys_create(file, initial_size);
+  lock_release(&filesys_create_lock);
+
+  return answer;
 }
 
 bool remove (const char *file)
 {
-  return filesys_remove(file);
+  struct lock filesys_remove_lock;
+  lock_init(&filesys_remove_lock);
+
+  lock_acquire(&filesys_remove_lock);
+  bool answer = filesys_remove(file);
+  lock_release(&filesys_remove_lock);
+
+  return answer;
 }
 
 int open (const char *file)
 {
-  return filesys_open(file);
+  struct file *file_open;
+  struct lock filesys_open_lock;
+  lock_init(&filesys_open_lock);
+  int answer = -1;
+
+  lock_acquire(&filesys_open_lock);
+  file_open = filesys_open(file);
+  if(file_open != NULL)
+  {
+    //fd
+  }
+  lock_release(&filesys_open_lock);
+  
+  return answer;
 }
 
 int filesize (int fd)
