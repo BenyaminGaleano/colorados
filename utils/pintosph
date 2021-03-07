@@ -1,0 +1,55 @@
+#!/bin/sh
+
+echo -e '\n\e[1m\e[36m * PINTOS PHASE - Utility\n * Made by Colorados Team in 2021\e[0m'
+
+echo -e '\n\e[32m Changing phase...\e[0m'
+
+if [ -n "$BASH_VERSION" ]; then
+SHRC='.bashrc'
+else
+SHRC='.zshrc'
+fi
+
+pintosph=`python <<- EOF
+import re
+import sys
+import os
+
+with open(os.environ['HOME'] + '/%s' % '$SHRC', 'r+') as bfile:
+
+    val = bfile.read()
+
+    phase = '$1'
+    val = re.sub(r'PINTOSPH=".*" # stop@000001', 'PINTOSPH="%s" # stop@000001' % phase, val)
+    bfile.seek(0)
+    bfile.write(val)
+    bfile.truncate()
+EOF`
+
+PINTOSPH="$1"
+echo -e "\e[32m Current phase in active terminal: $PINTOSPH\e[0m"
+export PINTOSPH
+
+
+echo -e "\n\e[33m Errors in writing of $SHRC:\e[31m\n"
+
+if [ -n "$pintosph" ]; then
+  echo $pintosph
+else 
+  echo -e '\e[1m\e[32m None! :)'
+fi
+echo -e "\e[0m"
+
+echo -n -e "\e[32m * Matched line in $SHRC:\n\n "
+MLINE=`cat ~/$SHRC | grep '# stop@000001'`
+
+if [ -n "$MLINE" ]; then
+echo $MLINE
+else
+echo -e "\e[31mNone!! you need to add the follow lines into ~/$SHRC\n"
+echo " PINTOSPH=\"\" # stop@000001"
+echo " export PINTOSPH"
+fi
+
+echo -e '\n\e[33m bye!\n'
+

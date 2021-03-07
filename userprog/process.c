@@ -2,6 +2,7 @@
 #include <debug.h>
 #include <inttypes.h>
 #include <round.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,6 +18,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "userprog/exception.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -25,9 +27,12 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
+
 tid_t
 process_execute (const char *file_name) 
 {
+  char *name = (char *)file_name;
+  char *save_ptr;
   char *fn_copy;
   tid_t tid;
 
@@ -38,11 +43,24 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  /** @colorados*/
+  name = strtok_r(name, " ", &save_ptr);
+  /** @colorados*/
+
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
+}
+
+static int 
+get_user (const uint8_t *uaddr)
+{
+  int result;
+  asm ("movl $1f, %0; movzbl %1, %0; 1:"
+       : "=&a" (result) : "m" (*uaddr));
+  return result;
 }
 
 /* A thread function that loads a user process and starts it
@@ -54,18 +72,85 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
+  /** @colorados */
+  char *token;
+  char *save_ptr;
+
+  token = strtok_r(file_name, " ", &save_ptr);
+  /** @colorados */
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp);
+  success = load (token, &if_.eip, &if_.esp);
 
+  /** @colorados */
+  struct thread *t = thread_current();
+  int argc = 1;
+  size_t tlen;
+  void *realpage = pagedir_get_page(t->pagedir, PHYS_BASE - PGSIZE) +  PGSIZE;
+  printf("------------------------   %d \n",get_user(realpage-1));
+  if (get_user(realpage-1)==-1) 
+  {
+    goto free_page;
+  }
+    
+  char **spaux = realpage - 130; // 128MB for max args size + free 2 bytes
+
+  if_.esp -= strlen(token) + 1;
+  realpage -= strlen(token) + 1;
+
+  *--spaux = if_.esp; // add name pointer into stack aux
+
+  strlcpy(realpage, token, PGSIZE);
+
+  while ((token = strtok_r(NULL, " ", &save_ptr)) != NULL) {
+    argc++;
+    tlen = strlen(token);
+
+    if_.esp -= tlen + 1;
+    realpage -= tlen + 1;
+    strlcpy(realpage, token, PGSIZE);
+    *--spaux = if_.esp;
+  }
+
+  unsigned align = ((uint32_t)if_.esp) % 4;
+
+  if_.esp -= align + 4;
+  realpage -= align + 4;
+
+  *((char **)if_.esp) = NULL; // last argument must be NULL
+  if_.esp -= 4;
+  realpage -= 4;
+  char **isp;
+  for (isp = spaux; isp < spaux + argc; isp++) {
+    *((char **) realpage) = *isp;
+    if_.esp -= 4;
+    realpage -= 4;
+  }
+
+  *((char ***) realpage) = if_.esp + 4; // argv
+  if_.esp -= 4;
+  realpage -= 4;
+
+  *((int *) realpage) = argc;
+  if_.esp -= 4;
+  realpage -= 4;
+
+  *((int32_t*) realpage) = 0;
+  /** @colorados */
+
+
+  
   /* If load failed, quit. */
+  free_page:
   palloc_free_page (file_name);
   if (!success) 
     thread_exit ();
 
+  printf("A ver si el gfe se esperó o se fue por los cigarros\n");
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -75,7 +160,19 @@ start_process (void *file_name_)
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
   NOT_REACHED ();
 }
-
+//Obtains a thread with the id going on args
+void get_thread_with_id(struct thread *t, void *args)
+{
+  if (**((struct thread***)args)!=NULL)
+  {
+    return;  
+  }
+  if (t->tid==(*((tid_t**)args)[1]))
+  {
+    **((struct thread***)args)=t;
+  }
+  
+}
 /* Waits for thread TID to die and returns its exit status.  If
    it was terminated by the kernel (i.e. killed due to an
    exception), returns -1.  If TID is invalid or if it was not a
@@ -88,7 +185,34 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  return -1;
+/*   for (uint32_t i = 0; i < 0xffff; i++) {
+    for (uint32_t ii = 0; ii < 0xffff; ii++) {
+
+    }
+  } */
+  
+  struct thread *t =NULL;
+  void *args[2];
+  args[0]=&t;
+  args[1]=&child_tid;
+  intr_disable();
+  thread_foreach(get_thread_with_id, args);
+  intr_enable();
+  /*if (t!=NULL)
+  {
+    printf("Nombre %s Patron %s \n", t->name, thread_current()->name);
+  }*/
+  if (t==NULL ||thread_tid()!= t->father->tid || t->estorbo)
+  {
+     return -1;
+  }
+  t->estorbo=1;
+  intr_disable();
+  thread_block();
+  intr_enable();
+  return t->exit_status;
+  //Verifiar que si despierto al papa que este, esté vivo
+ 
 }
 
 /* Free the current process's resources. */
@@ -219,10 +343,12 @@ load (const char *file_name, void (**eip) (void), void **esp)
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
     goto done;
+
   process_activate ();
 
   /* Open executable file. */
   file = filesys_open (file_name);
+
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);

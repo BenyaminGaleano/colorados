@@ -359,7 +359,8 @@ sub cyl_sectors {
 # Makes sure that the loader is a reasonable size.
 sub read_loader {
   my ($name) = @_;
-  $name = find_file ($ENV{"HOME"} . "/pintos/threads/build/loader.bin") if !defined $name;
+  $name = find_file ($ENV{"HOME"} . "/pintos/" . $ENV{"PINTOSPH"} . "/build/loader.bin") if !defined $name;
+  print $ENV{"HOME"} . "/pintos/" . $ENV{"PINTOSPH"} . "/build/loader.bin";
   die "Cannot find loader\n" if !defined $name;
 
   my ($handle);
