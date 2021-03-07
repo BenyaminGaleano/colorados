@@ -1,6 +1,8 @@
 #include "userprog/syscall.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <syscall-nr.h>
+#include "pagedir.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/init.h"
@@ -9,6 +11,7 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "threads/synch.h"
+#include "threads/vaddr.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -19,14 +22,21 @@ syscall_init (void)
 }
 
 static void
-syscall_handler (struct intr_frame *f UNUSED) 
+syscall_handler (struct intr_frame *f) 
 {
-  switch (*(int *)f->esp)  // toca ver donde se guardan
+  /** @colorados */
+  struct thread *t = thread_current();
+  void *st = pagedir_get_page(t->pagedir, ((uint8_t *) PHYS_BASE) - PGSIZE);
+  printf("Syscall into stack %d\n", *((int *)(st + stack_offset(f->esp))));
+  /** @colorados */
+
+  switch (*((uint32_t *)(st + stack_offset(f->esp)))  +500) // toca ver donde se guardan
   {
   case SYS_HALT:
     halt();
     break;
   case SYS_EXIT:
+    exit(0);
     break;
   case SYS_EXEC:
     break;
@@ -64,7 +74,7 @@ void exit(int status)
 {
   struct thread *current = thread_current();
   //missing condition process parent
-  printf ("%s: exit(%d)\n",current->name);
+  printf ("%s: exit(%d)\n",current->name, status);
   current->exit_status=status;
   thread_unblock(current->father);
 

@@ -91,13 +91,13 @@ start_process (void *file_name_)
   int argc = 1;
   size_t tlen;
   void *realpage = pagedir_get_page(t->pagedir, PHYS_BASE - PGSIZE) +  PGSIZE;
-  printf("------------------------   %d \n",get_user(realpage-1));
+  printf("------------------------   %d %p\n",get_user(realpage-1), realpage);
   if (get_user(realpage-1)==-1) 
   {
     goto free_page;
   }
     
-  char **spaux = realpage - 130; // 128MB for max args size + free 2 bytes
+  char **spaux = realpage - 1000; // 1kB
 
   if_.esp -= strlen(token) + 1;
   realpage -= strlen(token) + 1;
@@ -140,6 +140,20 @@ start_process (void *file_name_)
   realpage -= 4;
 
   *((int32_t*) realpage) = 0;
+
+  /** How do you get args?
+      the stack pointer is a really pointer to a type that you wish,
+      in this case, i want to get argv that's a char ** therefore,
+      stack pointer is a char ***, *esp is argv.
+      stack_offset is a macro function that takes a fake pointer (esp)
+      or any fake address (user stack address) and return the offset than
+      you need to add to a realpage stack address
+   */
+
+  /* hex_dump(PHYS_BASE - (uint32_t)(((uint8_t *)PHYS_BASE) - ((uint32_t)if_.esp)), realpage, (uint32_t)(((uint8_t *)PHYS_BASE) - ((uint32_t)if_.esp)), true); */
+  void *st = pagedir_get_page(t->pagedir, PHYS_BASE - PGSIZE);
+  char **str = *((char ***)(st + stack_offset(if_.esp + 8)));
+  printf("contenido %s\n\n", st + stack_offset(((char **)(st + stack_offset(str)))[0]));
   /** @colorados */
 
 
