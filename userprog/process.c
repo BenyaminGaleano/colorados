@@ -155,9 +155,7 @@ start_process (void *file_name_)
   void *st = pagedir_get_page(t->pagedir, PHYS_BASE - PGSIZE);
   /* printf("argc: %d\n", stkcast(st + stack_offset(if_.esp + 4), uint32_t)); */
   char **str1 = stkcast(st + stack_offset(if_.esp + 8), char **);
-  char **str = *((char ***)(st + stack_offset(if_.esp + 8)));
   /* printf("argv[0]: %s\n", st + stack_offset(str[0])); */
-  /* printf("contenido %s\n\n", st + stack_offset(((char **)(st + stack_offset(str)))[0])); */
   /** @colorados */
 
 
