@@ -97,6 +97,8 @@ struct thread
     struct lock *locked_me;             /* Pointer that references the lock who locks the current thread */
     struct thread *father;              /* Pointer that references the father process*/
     bool estorbo;                       /* Boolean to know if my father is waiting on me*/
+    struct condition *cond_var;
+    tid_t pid;
     int exit_status;
 
     /* Shared between thread.c and synch.c. */
