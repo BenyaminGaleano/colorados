@@ -140,18 +140,6 @@ void update_priority(struct thread *t, void *aux UNUSED)
     list_remove(&t->elem);
     list_push_back(mlfqs_queues + t->priority, &t->elem);
   }
-
-  /* struct list_elem *iter = list_begin(&all_list); */
-  /* struct thread *th; */
-
-  /* while(iter != list_end(&all_list)) { */
-  /*   th = list_entry(iter, struct thread, allelem); */
-  /*   if (th->status == THREAD_READY && th->priority > t->priority) { */
-  /*     thread_yield(); */
-  /*     break; */
-  /*   } */
-  /*   iter = list_next(iter); */
-  /* } */
 }
 
 void update_priority_forall(void)
@@ -201,7 +189,7 @@ void increment_recent_cpu(void)
 
 void yield_if_iam_manco(int priority)
 {
-  if (priority > thread_get_priority()) {
+  if (!intr_context () && priority > thread_get_priority()) {
     thread_yield();
   }
 }
@@ -387,6 +375,8 @@ thread_create (const char *name, int priority,
     t->recent_cpu = tt->recent_cpu;
     t->nice = tt->nice;
   }
+
+  t->father=thread_current();
   yield_if_iam_manco(priority);
   /* if(priority > thread_get_priority() && !thread_mlfqs) */
   /* { */
@@ -732,7 +722,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
   list_init(&t->locks);
   t->locked_me=NULL;
-
+  t->estorbo=0;
+  t->exit_status=0;
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
