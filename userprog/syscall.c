@@ -21,22 +21,31 @@ syscall_init (void)
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
+/*
+ *  
+ *...
+ *  arg1
+ *  syscall
+ *
+ */
+
 static void
 syscall_handler (struct intr_frame *f) 
 {
   /** @colorados */
   struct thread *t = thread_current();
   void *st = pagedir_get_page(t->pagedir, ((uint8_t *) PHYS_BASE) - PGSIZE);
-  printf("Syscall into stack %d\n", *((int *)(st + stack_offset(f->esp))));
+  /* printf("Syscall into stack %d\n", *((int *)(st + stack_offset(f->esp)))); */
+  st = st + stack_offset(f->esp);
   /** @colorados */
 
-  switch (*((uint32_t *)(st + stack_offset(f->esp)))  +500) // toca ver donde se guardan
+  switch (stkcast(st, uint32_t))
   {
   case SYS_HALT:
     halt();
     break;
   case SYS_EXIT:
-    exit(0);
+    exit(stkcast(st + 4, int));
     break;
   case SYS_EXEC:
     break;
@@ -51,6 +60,7 @@ syscall_handler (struct intr_frame *f)
   case SYS_READ:
     break;
   case SYS_WRITE:
+    write(stkcast(st + 4, uint32_t), stkcast(st + 8, void *), stkcast(st + 12, size_t));
     break;
   case SYS_SEEK:
     break;
@@ -145,6 +155,10 @@ int read (int fd, void *buffer, unsigned length)
 
 int write (int fd, const void *buffer, unsigned length)
 {
+  if (fd == 1) {
+    putbuf(buffer, length);
+  }
+
   return NULL;
 }
 

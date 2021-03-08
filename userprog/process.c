@@ -91,12 +91,13 @@ start_process (void *file_name_)
   int argc = 1;
   size_t tlen;
   void *realpage = pagedir_get_page(t->pagedir, PHYS_BASE - PGSIZE) +  PGSIZE;
-  printf("------------------------   %d %p\n",get_user(realpage-1), realpage);
-  if (get_user(realpage-1)==-1) 
+  /* printf("------------------------   %d %p\n",get_user(realpage-1), realpage); */
+  /* get_user(realpage - 1) == -1; */
+  if (success != 1)
   {
     goto free_page;
   }
-    
+
   char **spaux = realpage - 1000; // 1kB
 
   if_.esp -= strlen(token) + 1;
@@ -152,8 +153,11 @@ start_process (void *file_name_)
 
   /* hex_dump(PHYS_BASE - (uint32_t)(((uint8_t *)PHYS_BASE) - ((uint32_t)if_.esp)), realpage, (uint32_t)(((uint8_t *)PHYS_BASE) - ((uint32_t)if_.esp)), true); */
   void *st = pagedir_get_page(t->pagedir, PHYS_BASE - PGSIZE);
+  /* printf("argc: %d\n", stkcast(st + stack_offset(if_.esp + 4), uint32_t)); */
+  char **str1 = stkcast(st + stack_offset(if_.esp + 8), char **);
   char **str = *((char ***)(st + stack_offset(if_.esp + 8)));
-  printf("contenido %s\n\n", st + stack_offset(((char **)(st + stack_offset(str)))[0]));
+  /* printf("argv[0]: %s\n", st + stack_offset(str[0])); */
+  /* printf("contenido %s\n\n", st + stack_offset(((char **)(st + stack_offset(str)))[0])); */
   /** @colorados */
 
 
@@ -164,7 +168,7 @@ start_process (void *file_name_)
   if (!success) 
     thread_exit ();
 
-  printf("A ver si el gfe se esperó o se fue por los cigarros\n");
+  /* printf("A ver si el gfe se esperó o se fue por los cigarros\n"); */
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
