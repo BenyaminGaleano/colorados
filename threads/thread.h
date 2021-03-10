@@ -99,6 +99,9 @@ struct thread
     bool estorbo;                       /* Boolean to know if my father is waiting on me*/
     int exit_status;
 
+    void *files;                        /* Pointer to a user page that contains pointers to files opens */
+    unsigned afid;                      /* available file id (sequential) */
+
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
