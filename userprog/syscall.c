@@ -46,7 +46,7 @@ syscall_handler (struct intr_frame *f)
   /** @colorados */
   struct thread *t = thread_current();
   void *st = pagedir_get_page(t->pagedir, ((uint8_t *) PHYS_BASE) - PGSIZE);
-  /* printf("Syscall into stack %d\n", *((int *)(st + stack_offset(f->esp)))); */
+  //printf("Syscall into stack %d\n", *((int *)(st + stack_offset(f->esp))));
   st = st + stack_offset(f->esp);
   /** @colorados */
 
@@ -59,6 +59,10 @@ syscall_handler (struct intr_frame *f)
     exit(stkcast(st + 4, int));
     break;
   case SYS_EXEC:
+    exec(stkcast(st + 4, char *));
+    break;
+  case SYS_WAIT:
+    wait(stkcast(st + 4, pid_t));
     break;
   case SYS_CREATE:
     break;
@@ -99,6 +103,7 @@ void exit(int status)
   //missing condition process parent
   printf ("%s: exit(%d)\n",current->name, status);
   current->exit_status=status;
+  if (current->estorbo == 1)
   thread_unblock(current->father);
 
   if (current->files != NULL) {
@@ -110,7 +115,26 @@ void exit(int status)
 
 pid_t exec (const char *file)
 {
-  return NULL;
+  intr_disable();
+  struct lock lk;
+  lock_init(&lk);
+  struct condition cond;
+  cond_init(&cond);
+  pid_t pid = process_execute(file);
+  if (pid == -1) {
+    return -1;
+  }
+  struct thread *t = NULL;
+  void *args[2];
+  args[0] = &t;
+  args[1] = &pid;
+  thread_foreach(get_thread_with_id, args);
+  intr_enable();
+  t->cond_var = &cond;
+  lock_acquire(&lk);
+  cond_wait(t->cond_var, &lk);
+  lock_release(&lk);
+  return t->pid;
 }
 
 int wait (pid_t pid)

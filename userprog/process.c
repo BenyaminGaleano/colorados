@@ -19,6 +19,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "userprog/exception.h"
+#include "threads/synch.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -95,7 +96,13 @@ start_process (void *file_name_)
   /* get_user(realpage - 1) == -1; */
   if (success != 1)
   {
+    cond_signal(t->cond_var, NULL);
     goto free_page;
+  }
+  
+  if (t->cond_var != NULL)
+  {
+    cond_signal(t->cond_var, NULL);
   }
 
   char **spaux = realpage - 1000; // 1kB
