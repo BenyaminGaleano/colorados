@@ -65,13 +65,16 @@ syscall_handler (struct intr_frame *f)
     wait(stkcast(st + 4, pid_t));
     break;
   case SYS_CREATE:
+    f->eax = create(stkcast(st + 4, char *), stkcast(st + 8, unsigned));
     break;
   case SYS_REMOVE:
+    f->eax = remove(stkcast(st + 4, char *));
     break;
   case SYS_OPEN:
     f->eax = open(stkcast(st + 4, char *));
     break;
   case SYS_FILESIZE:
+    f->eax = filesize(stkcast(st +  4, int));
     break;
   case SYS_READ:
     f->eax = read(stkcast(st + 4, int), stkcast(st + 8, void *), stkcast(st + 12, unsigned));
@@ -80,10 +83,13 @@ syscall_handler (struct intr_frame *f)
     f->eax = write(stkcast(st + 4, uint32_t), stkcast(st + 8, void *), stkcast(st + 12, size_t));
     break;
   case SYS_SEEK:
+    seek(stkcast(st + 4, int), stkcast(st + 8, unsigned));
     break;
   case SYS_TELL:
+    f->eax = tell(stkcast(st + 4, int));
     break;
   case SYS_CLOSE:
+    close(stkcast(st + 4, int));
     break;
   default:
     printf ("system call!\n");
