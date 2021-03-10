@@ -156,15 +156,21 @@ start_process (void *file_name_)
   /* printf("argc: %d\n", stkcast(st + stack_offset(if_.esp + 4), uint32_t)); */
   char **str1 = stkcast(st + stack_offset(if_.esp + 8), char **);
   /* printf("argv[0]: %s\n", st + stack_offset(str[0])); */
+
+  t->files = palloc_get_page(PAL_USER | PAL_ZERO);
+  t->afid = 0;
+
+  if (t->files == NULL)
+    success = 0;
   /** @colorados */
 
-
-  
   /* If load failed, quit. */
   free_page:
   palloc_free_page (file_name);
-  if (!success) 
-    thread_exit ();
+  if (!success) {
+    palloc_free_page(t->files);
+    thread_exit();
+  }
 
   /* printf("A ver si el gfe se esperó o se fue por los cigarros\n"); */
   /* Start the user process by simulating a return from an

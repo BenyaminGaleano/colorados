@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <syscall-nr.h>
 #include "pagedir.h"
+#include "threads/palloc.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/init.h"
@@ -12,6 +13,16 @@
 #include "filesys/file.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+
+typedef union {
+  struct {
+    char magic : 1; // ignore 0 or 1 because they're reserved
+    char is_fd : 1;
+    uint32_t index : 10;
+  } descriptor;
+
+  int value;
+} fd_t;
 
 static void syscall_handler (struct intr_frame *);
 
@@ -54,13 +65,15 @@ syscall_handler (struct intr_frame *f)
   case SYS_REMOVE:
     break;
   case SYS_OPEN:
+    f->eax = open(stkcast(st + 4, char *));
     break;
   case SYS_FILESIZE:
     break;
   case SYS_READ:
+    f->eax = read(stkcast(st + 4, int), stkcast(st + 8, void *), stkcast(st + 12, unsigned));
     break;
   case SYS_WRITE:
-    write(stkcast(st + 4, uint32_t), stkcast(st + 8, void *), stkcast(st + 12, size_t));
+    f->eax = write(stkcast(st + 4, uint32_t), stkcast(st + 8, void *), stkcast(st + 12, size_t));
     break;
   case SYS_SEEK:
     break;
@@ -88,6 +101,10 @@ void exit(int status)
   current->exit_status=status;
   thread_unblock(current->father);
 
+  if (current->files != NULL) {
+    palloc_free_page(current->files);
+    /** TODO: close files of the current thread */
+  }
   thread_exit();
 }
 
@@ -129,52 +146,86 @@ int open (const char *file)
 {
   struct file *file_open;
   struct lock filesys_open_lock;
+  struct thread *t = thread_current();
   lock_init(&filesys_open_lock);
-  int answer = -1;
+  fd_t fd;
+  fd.value = -1;
 
   lock_acquire(&filesys_open_lock);
   file_open = filesys_open(file);
-  if(file_open != NULL)
+
+  if(file_open != NULL && t->files != NULL)
   {
-    //fd
+    fd.value = 0;
+    fd.descriptor.is_fd = 1;
+    fd.descriptor.index = t->afid++;
+    stkcast(t->files + fd.descriptor.index*4, void *) = file_open;
   }
+
   lock_release(&filesys_open_lock);
-  
-  return answer;
+
+  return fd.value;
 }
 
 int filesize (int fd)
 {
-  return file_length(fd);
+  struct thread *t = thread_current();
+
+  fd_t ffd;
+  ffd.value = fd;
+  unsigned i = ffd.descriptor.index;
+
+  if (t->files == NULL || i > 1023) {
+    return 0;
+  }
+
+  return file_length(stkcast(t->files + i*4, struct file *));
 }
 
 int read (int fd, void *buffer, unsigned length)
 {
-  return file_read(fd, buffer, length);
+  if (fd == 0) {
+    
+  }
+  struct thread *t = thread_current();
+  unsigned i = ((fd_t) fd).descriptor.index;
+
+  if (t->files == NULL || i > 1023) {
+    return 0;
+  }
+  return file_read(stkcast(t->files + i*4, void *), buffer, length);
 }
 
 int write (int fd, const void *buffer, unsigned length)
 {
   if (fd == 1) {
     putbuf(buffer, length);
+    return length;
   }
 
-  return NULL;
+  struct thread *t = thread_current();
+  fd_t fdes = (fd_t)fd;
+
+  return file_write(stkcast(t->files + fdes.descriptor.index * 4, void *), buffer, length);
 }
 
 void seek (int fd, unsigned position)
 {
-  struct file * file;
-  file_seek(file, position); 
+  fd_t fdes = (fd_t)fd;
+  struct thread *t = thread_current();
+  file_seek(stkcast(t->files + fdes.descriptor.index * 4, void *), position);
 }
 
 unsigned tell (int fd)
 {
-  file_tell(fd);
-  return NULL;
+  fd_t fdes = (fd_t)fd;
+  struct thread *t = thread_current();
+  return file_tell(stkcast(t->files + fdes.descriptor.index * 4, void *));
 }
 
 void close (int fd)
 {
-  file_close(fd); 
+  fd_t fdes = (fd_t)fd;
+  struct thread *t = thread_current();
+  file_close(stkcast(t->files + fdes.descriptor.index * 4, void *));
 }
