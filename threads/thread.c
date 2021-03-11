@@ -352,6 +352,7 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
+  t->pid = t->tid;
 
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
@@ -724,7 +725,6 @@ init_thread (struct thread *t, const char *name, int priority)
   t->locked_me=NULL;
   t->estorbo = 0;
   t->exit_status = 0;
-  t->pid = t->tid;
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);

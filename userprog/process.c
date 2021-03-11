@@ -55,15 +55,6 @@ process_execute (const char *file_name)
   return tid;
 }
 
-static int 
-get_user (const uint8_t *uaddr)
-{
-  int result;
-  asm ("movl $1f, %0; movzbl %1, %0; 1:"
-       : "=&a" (result) : "m" (*uaddr));
-  return result;
-}
-
 /* A thread function that loads a user process and starts it
    running. */
 static void
@@ -80,7 +71,6 @@ start_process (void *file_name_)
   token = strtok_r(file_name, " ", &save_ptr);
   /** @colorados */
 
-  /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
@@ -91,63 +81,53 @@ start_process (void *file_name_)
   struct thread *t = thread_current();
   int argc = 1;
   size_t tlen;
-  void *realpage = pagedir_get_page(t->pagedir, PHYS_BASE - PGSIZE) +  PGSIZE;
-  /* printf("------------------------   %d %p\n",get_user(realpage-1), realpage); */
-  /* get_user(realpage - 1) == -1; */
   if (success != 1)
   {
     cond_signal(t->cond_var, NULL);
     goto free_page;
   }
-  
+
   if (t->cond_var != NULL)
   {
     cond_signal(t->cond_var, NULL);
   }
 
-  char **spaux = realpage - 1000; // 1kB
+  char **spaux = if_.esp - 1000; // 1kB
 
   if_.esp -= strlen(token) + 1;
-  realpage -= strlen(token) + 1;
 
   *--spaux = if_.esp; // add name pointer into stack aux
 
-  strlcpy(realpage, token, PGSIZE);
+  strlcpy(if_.esp, token, PGSIZE);
 
   while ((token = strtok_r(NULL, " ", &save_ptr)) != NULL) {
     argc++;
     tlen = strlen(token);
 
     if_.esp -= tlen + 1;
-    realpage -= tlen + 1;
-    strlcpy(realpage, token, PGSIZE);
+    strlcpy(if_.esp, token, PGSIZE);
     *--spaux = if_.esp;
   }
 
   unsigned align = ((uint32_t)if_.esp) % 4;
 
   if_.esp -= align + 4;
-  realpage -= align + 4;
 
-  *((char **)if_.esp) = NULL; // last argument must be NULL
+  stkcast(if_.esp, char *) = NULL;
   if_.esp -= 4;
-  realpage -= 4;
   char **isp;
   for (isp = spaux; isp < spaux + argc; isp++) {
-    *((char **) realpage) = *isp;
+    stkcast(if_.esp, char *) = *isp;
     if_.esp -= 4;
-    realpage -= 4;
   }
 
-  *((char ***) realpage) = if_.esp + 4; // argv
+  stkcast(if_.esp, char **) = if_.esp + 4;
   if_.esp -= 4;
-  realpage -= 4;
 
-  *((int *) realpage) = argc;
+  stkcast(if_.esp, int) = argc;
   if_.esp -= 4;
-  realpage -= 4;
 
-  *((int32_t*) realpage) = 0;
+  stkcast(if_.esp, int) = 0;
 
   /** How do you get args?
       the stack pointer is a really pointer to a type that you wish,
@@ -158,11 +138,7 @@ start_process (void *file_name_)
       you need to add to a realpage stack address
    */
 
-  /* hex_dump(PHYS_BASE - (uint32_t)(((uint8_t *)PHYS_BASE) - ((uint32_t)if_.esp)), realpage, (uint32_t)(((uint8_t *)PHYS_BASE) - ((uint32_t)if_.esp)), true); */
-  void *st = pagedir_get_page(t->pagedir, PHYS_BASE - PGSIZE);
-  /* printf("argc: %d\n", stkcast(st + stack_offset(if_.esp + 4), uint32_t)); */
-  char **str1 = stkcast(st + stack_offset(if_.esp + 8), char **);
-  /* printf("argv[0]: %s\n", st + stack_offset(str[0])); */
+  /* hex_dump(PHYS_BASE - (uint32_t)(((uint8_t *)PHYS_BASE) - ((uint32_t)if_.esp)), if_.esp, (uint32_t)(((uint8_t *)PHYS_BASE) - ((uint32_t)if_.esp)), true); */
 
   t->files = palloc_get_page(PAL_USER | PAL_ZERO);
   t->afid = 0;
@@ -378,11 +354,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* Open executable file. */
   file = filesys_open (file_name);
 
-  if (file == NULL) 
-    {
-      printf ("load: %s: open failed\n", file_name);
-      goto done; 
-    }
+  if (file == NULL) {
+    printf("load: %s: open failed\n", file_name);
+    goto done;
+  }
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr

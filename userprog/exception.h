@@ -11,7 +11,7 @@
 
 void exception_init (void);
 void exception_print_stats (void);
-static int get_user (const uint8_t *uaddr);
-static bool put_user (uint8_t *udst, uint8_t byte);
+int get_user (const uint8_t *uaddr);
+bool put_user (uint8_t *udst, uint8_t byte);
 
 #endif /* userprog/exception.h */
