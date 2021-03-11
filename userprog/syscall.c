@@ -14,6 +14,8 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 
+static void syscall_handler (struct intr_frame *);
+/** @colorados */
 typedef union {
   struct {
     char magic : 1; // ignore 0 or 1 because they're reserved
@@ -24,12 +26,14 @@ typedef union {
   int value;
 } fd_t;
 
-static void syscall_handler (struct intr_frame *);
+struct lock filesys_lock;
+/** @colorados */
 
 void
 syscall_init (void) 
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
+  lock_init(&filesys_lock);
 }
 
 /*
@@ -106,7 +110,6 @@ void halt(void)
 void exit(int status)
 {
   struct thread *current = thread_current();
-  //missing condition process parent
   printf ("%s: exit(%d)\n",current->name, status);
   current->exit_status=status;
   if (current->estorbo == 1)
@@ -150,24 +153,18 @@ int wait (pid_t pid)
 
 bool create (const char *file, unsigned initial_size)
 {
-  struct lock filesys_create_lock;
-  lock_init(&filesys_create_lock);
-
-  lock_acquire(&filesys_create_lock);
+  lock_acquire(&filesys_lock);
   bool answer = filesys_create(file, initial_size);
-  lock_release(&filesys_create_lock);
+  lock_release(&filesys_lock);
 
   return answer;
 }
 
 bool remove (const char *file)
 {
-  struct lock filesys_remove_lock;
-  lock_init(&filesys_remove_lock);
-
-  lock_acquire(&filesys_remove_lock);
+  lock_acquire(&filesys_lock);
   bool answer = filesys_remove(file);
-  lock_release(&filesys_remove_lock);
+  lock_release(&filesys_lock);
 
   return answer;
 }
@@ -175,13 +172,11 @@ bool remove (const char *file)
 int open (const char *file)
 {
   struct file *file_open;
-  struct lock filesys_open_lock;
   struct thread *t = thread_current();
-  lock_init(&filesys_open_lock);
   fd_t fd;
   fd.value = -1;
 
-  lock_acquire(&filesys_open_lock);
+  lock_acquire(&filesys_lock);
   file_open = filesys_open(file);
 
   if(file_open != NULL && t->files != NULL)
@@ -191,8 +186,7 @@ int open (const char *file)
     fd.descriptor.index = t->afid++;
     stkcast(t->files + fd.descriptor.index*4, void *) = file_open;
   }
-
-  lock_release(&filesys_open_lock);
+  lock_release(&filesys_lock);
 
   return fd.value;
 }
