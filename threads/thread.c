@@ -126,7 +126,9 @@ pstate *search_pstate(struct thread *parent, tid_t tid) {
     return NULL;
   }
 
-  for (int i = 1; i < 512; i++) {
+  tid_t maxi = stkcast(parent->childsexit, tid_t);
+
+  for (int i = 1; i <= maxi; i++) {
     if (stkcast(parent->childsexit + i * 4, tid_t) == tid) {
       ps = &stkcast(parent->childsexit + (1023 - i) * 4, pstate);
       break;
@@ -773,6 +775,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->files=NULL;
   t->I=t;
   t->parent=NULL;
+  t->exit_state = -1;
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);

@@ -1,6 +1,7 @@
 #include "userprog/process.h"
 #include <debug.h>
 #include <inttypes.h>
+#include <list.h>
 #include <round.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -83,15 +84,15 @@ start_process (void *file_name_)
   size_t tlen;
   if (success != 1)
   {
-    cond_signal(t->cond_var, NULL);
+    //cond_signal(t->cond_var, NULL);
     goto free_page;
   }
-
+  /*
   if (t->cond_var != NULL)
   {
     cond_signal(t->cond_var, NULL);
   }
-
+  */
   char **spaux = if_.esp - 1000; // 1kB
 
   if_.esp -= strlen(token) + 1;
@@ -155,7 +156,14 @@ start_process (void *file_name_)
     ps->descriptor.exit = -1;
     ps->descriptor.alive = 0;
     palloc_free_page(t->files);
+    if (t->sema_parent != NULL) {
+      sema_up(t->sema_parent);
+    }
     thread_exit();
+  }
+
+  if (t->sema_parent != NULL) {
+    sema_up(t->sema_parent);
   }
 
   /* printf("A ver si el gfe se esperó o se fue por los cigarros\n"); */
@@ -217,26 +225,23 @@ process_exit (void)
   pstate *ps = NULL;
   struct thread **t = cur->parent;
 
+  struct lock *l;
+  while (!list_empty(&cur->locks)) {
+    l = list_entry(list_pop_front(&cur->locks), struct lock, elem);
+    lock_release(l);
+  }
+
   if (cur->exec_file != NULL)
   {
     sys_closef(cur->exec_file);
   }
 
-  for (int i = 0; i < PGSIZE; i += 4)
-  {
-    if (stkcast(cur->files + i, struct file *) != NULL)
-    {
-      sys_closef(stkcast(cur->files + i, struct file *));
-    } 
+  for (int i = 0; i < cur->afid + 1; i++) {
+    if (stkcast(cur->files + i*4, struct file *) != NULL) {
+      sys_closef(stkcast(cur->files + i*4, struct file *));
+    }
   }
   
-
-  while (!list_empty(&cur->locks))
-  {
-    lock_release(
-        list_entry(list_pop_front(&cur->locks), struct lock, elem));
-  }
-
   palloc_free_page(cur->files);
 
   palloc_free_page(cur->childsexit);
@@ -247,6 +252,7 @@ process_exit (void)
     if (ps != NULL)
     {
       ps->descriptor.alive = 0;
+      ps->descriptor.exit = cur->exit_state;
       if (ps->descriptor.estorbo)
       {
         thread_unblock(*t);

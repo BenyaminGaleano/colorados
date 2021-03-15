@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "fixed-point.h"
+#include "synch.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -97,10 +98,11 @@ struct thread
     struct lock *locked_me;             /* Pointer that references the lock who locks the current thread */
     struct thread **parent;
     bool estorbo;                       /* Boolean to know if my father is waiting on me*/
-    struct condition *cond_var;
+    //struct condition *cond_var;
     tid_t pid;
     
-    
+    struct semaphore *sema_parent;
+    int exit_state;
     struct thread * child;
     struct thread * I;
     
@@ -190,6 +192,6 @@ typedef union {
    int value;
 } pstate;
 
-pstate *search_pstate(struct thread *parent, tid_t child);
+pstate *search_pstate(struct thread *parent, tid_t tid);
 
 #endif /* threads/thread.h */

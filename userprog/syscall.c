@@ -23,6 +23,7 @@ typedef union {
     uint8_t magic : 1; // ignore 0 or 1 because they're reserved
     uint8_t is_fd : 1;
     uint32_t index : 10;
+    int padding: 20;
   } descriptor;
 
   int value;
@@ -79,40 +80,58 @@ syscall_handler (struct intr_frame *f)
     f->eax = wait(stkcast(st + 4, pid_t));
     break;
   case SYS_CREATE:
+    lock_acquire(&filesys_lock);
     checkbytes(st, 12);
     f->eax = create(stkcast(st + 4, char *), stkcast(st + 8, unsigned));
+    lock_release(&filesys_lock);
     break;
   case SYS_REMOVE:
+    lock_acquire(&filesys_lock);
     checkbytes(st, 8);
     f->eax = remove(stkcast(st + 4, char *));
+    lock_release(&filesys_lock);
     break;
   case SYS_OPEN:
+    lock_acquire(&filesys_lock);
     checkbytes(st, 8);
     f->eax = open(stkcast(st + 4, char *));
+    lock_release(&filesys_lock);
     break;
   case SYS_FILESIZE:
+    lock_acquire(&filesys_lock);
     checkbytes(st, 8);
     f->eax = filesize(stkcast(st +  4, int));
+    lock_release(&filesys_lock);
     break;
   case SYS_READ:
+    lock_acquire(&filesys_lock);
     checkbytes(st, 16);
     f->eax = read(stkcast(st + 4, int), stkcast(st + 8, void *), stkcast(st + 12, unsigned));
+    lock_release(&filesys_lock);
     break;
   case SYS_WRITE:
+    lock_acquire(&filesys_lock);
     checkbytes(st, 16);
     f->eax = write(stkcast(st + 4, uint32_t), stkcast(st + 8, void *), stkcast(st + 12, size_t));
+    lock_release(&filesys_lock);
     break;
   case SYS_SEEK:
+    lock_acquire(&filesys_lock);
     checkbytes(st, 12);
     seek(stkcast(st + 4, int), stkcast(st + 8, unsigned));
+    lock_release(&filesys_lock);
     break;
   case SYS_TELL:
+    lock_acquire(&filesys_lock);
     checkbytes(st, 8);
     f->eax = tell(stkcast(st + 4, int));
+    lock_release(&filesys_lock);
     break;
   case SYS_CLOSE:
+    lock_acquire(&filesys_lock);
     checkbytes(st, 8);
     close(stkcast(st + 4, int));
+    lock_release(&filesys_lock);
     break;
   default:
     printf ("system call!\n");
@@ -139,29 +158,19 @@ void exit(int status)
 {
   struct thread *current = thread_current();
   printf ("%s: exit(%d)\n",current->name, status);
-
-  struct thread **t = current->parent;
-
-  pstate *ps = NULL;
-  if (t != NULL && *t != NULL)
-  {
-    ps = search_pstate(*t, current->tid);
-    if (ps != NULL) {
-      ps->descriptor.exit = status;
-    }
-  }
-
+  current->exit_state = status;
   thread_exit();
 }
 
 pid_t exec (const char *file)
 {
   intr_disable();
-  struct lock lk;
-  lock_init(&lk);
-  struct condition cond;
+  //struct lock lk;
+  //lock_init(&lk);
+  //struct condition cond;
+  struct semaphore sema;
   char *checkf = file;
-  cond_init(&cond);
+  sema_init(&sema, 0);
   while (get_user(checkf) != 0) {
     if (get_user(checkf) == -1) {
       exit(-1);
@@ -190,12 +199,10 @@ pid_t exec (const char *file)
   //thread_foreach(get_thread_with_id, args);
   t = thread_current()->child;
   thread_current()->child = NULL;
-  t->cond_var = &cond;
+  t->sema_parent = &sema;
   intr_enable();
   
-  lock_acquire(&lk);
-  cond_wait(t->cond_var, &lk);
-  lock_release(&lk);
+  sema_down(&sema);
 
   if (search_pstate(thread_current(), pid)->descriptor.child == 0) {
     return -1;
@@ -221,9 +228,7 @@ bool create (const char *file, unsigned initial_size)
       }
       checkf++;
     }
-    lock_acquire(&filesys_lock);
     answer = filesys_create(file, initial_size);
-    lock_release(&filesys_lock);
   } else {
     exit(-1);
   }
@@ -234,20 +239,8 @@ bool create (const char *file, unsigned initial_size)
 
 bool remove (const char *file)
 {
-  lock_acquire(&filesys_lock);
   bool answer = filesys_remove(file);
-  lock_release(&filesys_lock);
-
   return answer;
-}
-void check_exec_files(struct thread *t, void *file) {
-  if (t->exec_file == NULL) {
-    return;
-  }
-
-  if (file_get_inode(t->exec_file) == file_get_inode(file)) {
-    file_deny_write(file);
-  }
 }
 
 int open (const char *file)
@@ -268,7 +261,7 @@ int open (const char *file)
     }
     checkf++;
   }
-  lock_acquire(&filesys_lock);
+  
   file_open = filesys_open(file);
 
   if(file_open != NULL && t->files != NULL)
@@ -284,7 +277,6 @@ int open (const char *file)
     stkcast(t->files + fd.descriptor.index*4, void *) = file_open;
     /* file_deny_write(file_open); */
   }
-  lock_release(&filesys_lock);
 
   return fd.value;
 }
@@ -297,8 +289,8 @@ int filesize (int fd)
   ffd.value = fd;
   unsigned i = ffd.descriptor.index;
 
-  if (t->files == NULL || i > 1023) {
-    return 0;
+  if (t->files == NULL || !ffd.descriptor.is_fd || ffd.descriptor.padding != 0) {
+    exit(-1);
   }
 
   return file_length(stkcast(t->files + i*4, struct file *));
@@ -339,12 +331,10 @@ int read (int fd, void *buffer, unsigned length)
   struct file *f = stkcast(t->files + i * 4, void *);
 
   if (f == NULL) {
-    return 0;
+    exit(-1);
   }
 
-  lock_acquire(&filesys_lock);
   off_t rlen = file_read(f, buffer, length);
-  lock_release(&filesys_lock);
   return rlen;
 }
 
@@ -369,14 +359,12 @@ int write (int fd, const void *buffer, unsigned length)
   fd_t fdes = (fd_t)fd;
   struct file *f;
 
-  if (t->files == NULL || fdes.descriptor.index > 1023 ||
+  if (t->files == NULL || !fdes.descriptor.is_fd || fdes.descriptor.padding != 0 ||
       (f = stkcast(t->files + fdes.descriptor.index * 4, struct file*)) == NULL) {
-    return 0;
+    exit(-1);
   }
-
-  lock_acquire(&filesys_lock);
+  
   off_t written = file_write(f, buffer, length);
-  lock_release(&filesys_lock);
   return written;
 }
 
@@ -384,13 +372,25 @@ void seek (int fd, unsigned position)
 {
   fd_t fdes = (fd_t)fd;
   struct thread *t = thread_current();
-  file_seek(stkcast(t->files + fdes.descriptor.index * 4, void *), position);
+  struct file *f;
+  if (t->files == NULL ||
+      !fdes.descriptor.is_fd || fdes.descriptor.padding != 0 ||
+      (f = stkcast(t->files + fdes.descriptor.index * 4, struct file *)) ==
+          NULL) {
+    exit(-1);
+  }
+
+  file_seek(f, position);
 }
 
 unsigned tell (int fd)
 {
   fd_t fdes = (fd_t)fd;
   struct thread *t = thread_current();
+  if (t->files == NULL || !fdes.descriptor.is_fd ||
+      fdes.descriptor.padding != 0) {
+    exit(-1);
+  }
   return file_tell(stkcast(t->files + fdes.descriptor.index * 4, void *));
 }
 void sys_closef(void *f) 
@@ -406,11 +406,16 @@ void close (int fd)
   struct thread *t = thread_current();
   struct file *f = stkcast(t->files + fdes.descriptor.index * 4, void *);
 
+  if (t->files == NULL ||
+      !fdes.descriptor.is_fd || fdes.descriptor.padding != 0) {
+    exit(-1);
+  }
+
   if (f == NULL) {
     return;
   }
 
   /* file_allow_write(f); */
-  sys_closef(f);
+  file_close(f);
   stkcast(t->files + fdes.descriptor.index * 4, void *) = NULL;
 }

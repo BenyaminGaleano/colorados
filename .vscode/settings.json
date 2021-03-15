@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "palloc.h": "c"
+        "palloc.h": "c",
+        "init.h": "c"
     }
 }
