@@ -95,19 +95,20 @@ struct thread
     int nice;                           /* the nice value of thread. */
     struct list locks;                  /* List of locks of a thread*/
     struct lock *locked_me;             /* Pointer that references the lock who locks the current thread */
-    struct thread *father;              /* Pointer that references the father process*/
     struct thread **parent;
     bool estorbo;                       /* Boolean to know if my father is waiting on me*/
     struct condition *cond_var;
     tid_t pid;
-    int exit_status;
+    
     
     struct thread * child;
     struct thread * I;
+    
+    struct file *exec_file;
     void *files;                        /* Pointer to a user page that contains pointers to files opens */
     unsigned afid;                      /* available file id (sequential) */
    
-   void *childsexit;
+    void *childsexit;
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */

@@ -386,15 +386,35 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
+  t->parent = &thread_current()->I;
+  /* t->parent_id = t->father->tid; */
+  (*t->parent)->child = t;
+  if ((*t->parent)->childsexit == NULL) {
+    (*t->parent)->childsexit = palloc_get_page(PAL_USER | PAL_ZERO);
+
+    if ((*t->parent)->childsexit == NULL)
+      return TID_ERROR;
+
+    stkcast((*t->parent)->childsexit, int) = 1;
+  }
+
+  t->pid = stkcast((*t->parent)->childsexit, int);
+  stkcast((*t->parent)->childsexit, int) += 1;
+
+  if (t->pid > 511) {
+    return TID_ERROR;
+  }
+
   pstate ps;
   ps.descriptor.exit = -1;
   ps.descriptor.alive = 1;
   ps.descriptor.estorbo = 0;
   ps.descriptor.child = 1;
 
-  stkcast((*t->parent)->childsexit + (t->pid) * 4, int) = t->pid;
+  stkcast((*t->parent)->childsexit + (t->pid) * 4, int) = t->tid;
   stkcast((*t->parent)->childsexit + (1023 - t->pid) * 4, int) = ps.value;
 
+  t->pid = t->tid;
   /* Add to run queue. */
   thread_unblock (t);
   if (thread_mlfqs) {
@@ -403,7 +423,6 @@ thread_create (const char *name, int priority,
     t->nice = tt->nice;
   }
 
-  t->father=thread_current();
   yield_if_iam_manco(priority);
   /* if(priority > thread_get_priority() && !thread_mlfqs) */
   /* { */
@@ -749,8 +768,11 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
   list_init(&t->locks);
   t->locked_me=NULL;
+  t->childsexit = NULL;
   t->estorbo = 0;
-  t->exit_status = 0;
+  t->files=NULL;
+  t->I=t;
+  t->parent=NULL;
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);

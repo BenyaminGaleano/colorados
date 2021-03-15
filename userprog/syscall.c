@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <syscall-nr.h>
+#include <string.h>
 #include "pagedir.h"
 #include "threads/palloc.h"
 #include "threads/interrupt.h"
@@ -19,8 +20,8 @@ static void syscall_handler (struct intr_frame *);
 /** @colorados */
 typedef union {
   struct {
-    char magic : 1; // ignore 0 or 1 because they're reserved
-    char is_fd : 1;
+    uint8_t magic : 1; // ignore 0 or 1 because they're reserved
+    uint8_t is_fd : 1;
     uint32_t index : 10;
   } descriptor;
 
@@ -138,18 +139,18 @@ void exit(int status)
 {
   struct thread *current = thread_current();
   printf ("%s: exit(%d)\n",current->name, status);
-  current->exit_status=status;
-  if (current->estorbo == 1)
-  thread_unblock(current->father);
 
-  if (current->files != NULL) {
-    palloc_free_page(current->files);
-    /** TODO: close files of the current thread and release locks ands free pages*/
+  struct thread **t = current->parent;
 
-    while (!list_empty(&current->locks)) {
-      lock_release(list_entry(list_pop_front(&current->locks), struct lock, elem));
+  pstate *ps = NULL;
+  if (t != NULL && *t != NULL)
+  {
+    ps = search_pstate(*t, current->tid);
+    if (ps != NULL) {
+      ps->descriptor.exit = status;
     }
   }
+
   thread_exit();
 }
 
@@ -182,7 +183,6 @@ pid_t exec (const char *file)
     return -1;
   }
 
-
   struct thread *t = NULL;
   void *args[2];
   args[0] = &t;
@@ -201,7 +201,7 @@ pid_t exec (const char *file)
     return -1;
   }
 
-  return t->pid;
+  return pid;
 }
 
 int wait (pid_t pid)
@@ -213,7 +213,7 @@ bool create (const char *file, unsigned initial_size)
 {
   bool answer;
   char *checkf = file;
-  lock_acquire(&filesys_lock);
+  
   if (file != NULL) {
     while (get_user(checkf) != 0) {
       if (get_user(checkf) == -1) {
@@ -221,11 +221,13 @@ bool create (const char *file, unsigned initial_size)
       }
       checkf++;
     }
+    lock_acquire(&filesys_lock);
     answer = filesys_create(file, initial_size);
+    lock_release(&filesys_lock);
   } else {
     exit(-1);
   }
-  lock_release(&filesys_lock);
+
 
   return answer;
 }
@@ -238,6 +240,15 @@ bool remove (const char *file)
 
   return answer;
 }
+void check_exec_files(struct thread *t, void *file) {
+  if (t->exec_file == NULL) {
+    return;
+  }
+
+  if (file_get_inode(t->exec_file) == file_get_inode(file)) {
+    file_deny_write(file);
+  }
+}
 
 int open (const char *file)
 {
@@ -246,8 +257,6 @@ int open (const char *file)
   char *checkf = file;
   fd_t fd;
   fd.value = -1;
-
-  lock_acquire(&filesys_lock);
 
   if (file == NULL) {
     exit(-1);
@@ -259,18 +268,22 @@ int open (const char *file)
     }
     checkf++;
   }
-
+  lock_acquire(&filesys_lock);
   file_open = filesys_open(file);
 
   if(file_open != NULL && t->files != NULL)
   {
+     if (t->afid > 1023) {
+      sys_closef(file_open);
+      exit(-1);
+    }
+
     fd.value = 0;
     fd.descriptor.is_fd = 1;
     fd.descriptor.index = t->afid++;
     stkcast(t->files + fd.descriptor.index*4, void *) = file_open;
     /* file_deny_write(file_open); */
   }
-
   lock_release(&filesys_lock);
 
   return fd.value;
@@ -380,6 +393,12 @@ unsigned tell (int fd)
   struct thread *t = thread_current();
   return file_tell(stkcast(t->files + fdes.descriptor.index * 4, void *));
 }
+void sys_closef(void *f) 
+{
+  lock_acquire(&filesys_lock);
+  file_close(f);
+  lock_release(&filesys_lock);
+}
 
 void close (int fd)
 {
@@ -392,6 +411,6 @@ void close (int fd)
   }
 
   /* file_allow_write(f); */
-  file_close(f);
+  sys_closef(f);
   stkcast(t->files + fdes.descriptor.index * 4, void *) = NULL;
 }

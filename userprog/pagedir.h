@@ -4,11 +4,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define stack_offset(esp)                                                      \
-  ((uint32_t)(((uint8_t *)esp) - ((uint32_t) (((uint8_t *)PHYS_BASE) - PGSIZE))))
-
-#define stkcast(pointer, type) *((type *) (pointer))
-
 uint32_t *pagedir_create (void);
 void pagedir_destroy (uint32_t *pd);
 bool pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool rw);

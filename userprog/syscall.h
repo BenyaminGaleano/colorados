@@ -3,4 +3,5 @@
 
 void syscall_init (void);
 
+void sys_closef(void *f);
 #endif /* userprog/syscall.h */

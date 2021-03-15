@@ -20,7 +20,7 @@
 #include "threads/vaddr.h"
 #include "userprog/exception.h"
 #include "threads/synch.h"
-
+#include "userprog/syscall.h"
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
@@ -143,14 +143,17 @@ start_process (void *file_name_)
   t->files = palloc_get_page(PAL_USER | PAL_ZERO);
   t->afid = 0;
 
-  if (t->files == NULL)
-    success = 0;
+  if (t->files == NULL) success = 0;
   /** @colorados */
 
   /* If load failed, quit. */
   free_page:
   palloc_free_page (file_name);
   if (!success) {
+    pstate *ps = search_pstate(*t->parent, t->tid);
+    ps->descriptor.child = 0;
+    ps->descriptor.exit = -1;
+    ps->descriptor.alive = 0;
     palloc_free_page(t->files);
     thread_exit();
   }
@@ -165,19 +168,7 @@ start_process (void *file_name_)
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
   NOT_REACHED ();
 }
-//Obtains a thread with the id going on args
-void get_thread_with_id(struct thread *t, void *args)
-{
-  if (**((struct thread***)args)!=NULL)
-  {
-    return;  
-  }
-  if (t->tid==(*((tid_t**)args)[1]))
-  {
-    **((struct thread***)args)=t;
-  }
-  
-}
+
 /* Waits for thread TID to die and returns its exit status.  If
    it was terminated by the kernel (i.e. killed due to an
    exception), returns -1.  If TID is invalid or if it was not a
@@ -190,34 +181,28 @@ void get_thread_with_id(struct thread *t, void *args)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-/*   for (uint32_t i = 0; i < 0xffff; i++) {
-    for (uint32_t ii = 0; ii < 0xffff; ii++) {
-
-    }
-  } */
-  
-  struct thread *t =NULL;
-  void *args[2];
-  args[0]=&t;
-  args[1]=&child_tid;
-  intr_disable();
-  thread_foreach(get_thread_with_id, args);
-  intr_enable();
-  /*if (t!=NULL)
-  {
-    printf("Nombre %s Patron %s \n", t->name, thread_current()->name);
-  }*/
-  if (t==NULL ||thread_tid()!= t->father->tid || t->estorbo)
+  if (child_tid==-1)
   {
      return -1;
   }
-  t->estorbo=1;
+  
+  struct thread *t = thread_current();
+  pstate *ps = search_pstate(t, child_tid);
+  
+  if (ps == NULL || ps->descriptor.estorbo || !ps->descriptor.child)
+  {
+    return -1;
+  }
+
+  ps->descriptor.estorbo = 1;
+
+  if (!ps->descriptor.alive) {
+    return ps->descriptor.exit;
+  }
   intr_disable();
   thread_block();
   intr_enable();
-  return t->exit_status;
-  //Verifiar que si despierto al papa que este, esté vivo
- 
+  return ps->descriptor.exit;
 }
 
 /* Free the current process's resources. */
@@ -227,6 +212,47 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
+  cur->I = NULL;
+
+  pstate *ps = NULL;
+  struct thread **t = cur->parent;
+
+  if (cur->exec_file != NULL)
+  {
+    sys_closef(cur->exec_file);
+  }
+
+  for (int i = 0; i < PGSIZE; i += 4)
+  {
+    if (stkcast(cur->files + i, struct file *) != NULL)
+    {
+      sys_closef(stkcast(cur->files + i, struct file *));
+    } 
+  }
+  
+
+  while (!list_empty(&cur->locks))
+  {
+    lock_release(
+        list_entry(list_pop_front(&cur->locks), struct lock, elem));
+  }
+
+  palloc_free_page(cur->files);
+
+  palloc_free_page(cur->childsexit);
+
+   if (t != NULL && *t != NULL)
+   {
+    ps = search_pstate(*t, cur->tid);
+    if (ps != NULL)
+    {
+      ps->descriptor.alive = 0;
+      if (ps->descriptor.estorbo)
+      {
+        thread_unblock(*t);
+      }
+    }
+   }
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -439,10 +465,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
   *eip = (void (*) (void)) ehdr.e_entry;
 
   success = true;
-
+  file_deny_write(file);
+  t->exec_file = file;
  done:
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
   return success;
 }
 
@@ -563,6 +589,12 @@ setup_stack (void **esp)
   bool success = false;
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+
+
+  if (kpage == NULL) {
+    kpage = palloc_get_page(0);
+  }
+  
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
