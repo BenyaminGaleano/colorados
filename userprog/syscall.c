@@ -167,20 +167,40 @@ pid_t exec (const char *file)
     }
     checkf++;
   }
-  pid_t pid = process_execute(file);
+
+  void *file_mod = palloc_get_page(PAL_USER);
+
+  if (file_mod == NULL) {
+    return -1;
+  }
+
+  strlcpy(file_mod, file, PGSIZE);
+  pid_t pid = process_execute(file_mod);
+  palloc_free_page(file_mod);
+
   if (pid == -1) {
     return -1;
   }
+
+
   struct thread *t = NULL;
   void *args[2];
   args[0] = &t;
   args[1] = &pid;
-  thread_foreach(get_thread_with_id, args);
-  intr_enable();
+  //thread_foreach(get_thread_with_id, args);
+  t = thread_current()->child;
+  thread_current()->child = NULL;
   t->cond_var = &cond;
+  intr_enable();
+  
   lock_acquire(&lk);
   cond_wait(t->cond_var, &lk);
   lock_release(&lk);
+
+  if (search_pstate(thread_current(), pid)->descriptor.child == 0) {
+    return -1;
+  }
+
   return t->pid;
 }
 

@@ -119,6 +119,23 @@ thread_init (void)
   initial_thread->tid = allocate_tid ();
 }
 
+pstate *search_pstate(struct thread *parent, tid_t tid) {
+  pstate *ps = NULL;
+
+  if (parent == NULL || parent->childsexit == NULL) {
+    return NULL;
+  }
+
+  for (int i = 1; i < 512; i++) {
+    if (stkcast(parent->childsexit + i * 4, tid_t) == tid) {
+      ps = &stkcast(parent->childsexit + (1023 - i) * 4, pstate);
+      break;
+    }
+  }
+
+  return ps;
+}
+
 /* Hey, Here's a colorados code */
 void update_priority(struct thread *t, void *aux UNUSED)
 {
@@ -352,7 +369,7 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
-  t->pid = t->tid;
+  /* t->pid = t->tid; */
 
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
@@ -368,6 +385,15 @@ thread_create (const char *name, int priority,
   sf = alloc_frame (t, sizeof *sf);
   sf->eip = switch_entry;
   sf->ebp = 0;
+
+  pstate ps;
+  ps.descriptor.exit = -1;
+  ps.descriptor.alive = 1;
+  ps.descriptor.estorbo = 0;
+  ps.descriptor.child = 1;
+
+  stkcast((*t->parent)->childsexit + (t->pid) * 4, int) = t->pid;
+  stkcast((*t->parent)->childsexit + (1023 - t->pid) * 4, int) = ps.value;
 
   /* Add to run queue. */
   thread_unblock (t);

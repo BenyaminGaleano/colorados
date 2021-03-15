@@ -17,4 +17,11 @@ void *palloc_get_multiple (enum palloc_flags, size_t page_cnt);
 void palloc_free_page (void *);
 void palloc_free_multiple (void *, size_t page_cnt);
 
+/** @colorados */
+#define stack_offset(esp)                                                      \
+  ((uint32_t)(((uint8_t *)esp) - ((uint32_t)(((uint8_t *)PHYS_BASE) - PGSIZE))))
+
+#define stkcast(pointer, type) (*((type *)(pointer)))
+/** @colorados */
+
 #endif /* threads/palloc.h */
