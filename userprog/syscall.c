@@ -29,6 +29,7 @@ typedef union {
   int value;
 } fd_t;
 void checkbytes(void *, int);
+int stdout_and_check(int fd, const void *buffer, unsigned length);
 struct lock filesys_lock;
 /** @colorados */
 
@@ -110,8 +111,14 @@ syscall_handler (struct intr_frame *f)
     lock_release(&filesys_lock);
     break;
   case SYS_WRITE:
-    lock_acquire(&filesys_lock);
     checkbytes(st, 16);
+    f->eax = stdout_and_check(stkcast(st + 4, uint32_t), stkcast(st + 8, void *), stkcast(st + 12, size_t));
+
+    if (f->eax != -1) {
+      break;
+    }
+
+    lock_acquire(&filesys_lock);
     f->eax = write(stkcast(st + 4, uint32_t), stkcast(st + 8, void *), stkcast(st + 12, size_t));
     lock_release(&filesys_lock);
     break;
@@ -138,6 +145,26 @@ syscall_handler (struct intr_frame *f)
     thread_exit ();
     break;
   }
+}
+
+int stdout_and_check(int fd, const void *buffer, unsigned length)
+{
+  if (fd == 0) {
+    return 0;
+  }
+
+  for (int i = 0; i < length; i++) {
+    if (get_user(buffer + i) == -1) {
+      exit(-1);
+    }
+  }
+
+  if (fd == 1) {
+    putbuf(buffer, length);
+    return length;
+  }
+
+  return -1;
 }
 
 void checkbytes(void *mem, int bytes_to_check)
@@ -340,20 +367,20 @@ int read (int fd, void *buffer, unsigned length)
 
 int write (int fd, const void *buffer, unsigned length)
 {
-  if (fd == 0) {
-    return 0;
-  }
+  /* if (fd == 0) { */
+  /*   return 0; */
+  /* } */
 
-  for (int i = 0; i < length; i++) {
-    if (get_user(buffer + i) == -1) {
-      exit(-1);
-    }
-  }
+  /* for (int i = 0; i < length; i++) { */
+  /*   if (get_user(buffer + i) == -1) { */
+  /*     exit(-1); */
+  /*   } */
+  /* } */
 
-  if (fd == 1) {
-    putbuf(buffer, length);
-    return length;
-  }
+  /* if (fd == 1) { */
+  /*   putbuf(buffer, length); */
+  /*   return length; */
+  /* } */
 
   struct thread *t = thread_current();
   fd_t fdes = (fd_t)fd;
