@@ -30,6 +30,7 @@ typedef union {
 } fd_t;
 void checkbytes(void *, int);
 int stdout_and_check(int fd, const void *buffer, unsigned length);
+int stdin_and_check(int fd, void *buffer, unsigned length);
 struct lock filesys_lock;
 /** @colorados */
 
@@ -81,32 +82,38 @@ syscall_handler (struct intr_frame *f)
     f->eax = wait(stkcast(st + 4, pid_t));
     break;
   case SYS_CREATE:
-    lock_acquire(&filesys_lock);
     checkbytes(st, 12);
+    lock_acquire(&filesys_lock);
     f->eax = create(stkcast(st + 4, char *), stkcast(st + 8, unsigned));
     lock_release(&filesys_lock);
     break;
   case SYS_REMOVE:
-    lock_acquire(&filesys_lock);
     checkbytes(st, 8);
+    lock_acquire(&filesys_lock);
     f->eax = remove(stkcast(st + 4, char *));
     lock_release(&filesys_lock);
     break;
   case SYS_OPEN:
-    lock_acquire(&filesys_lock);
     checkbytes(st, 8);
+    lock_acquire(&filesys_lock);
     f->eax = open(stkcast(st + 4, char *));
     lock_release(&filesys_lock);
     break;
   case SYS_FILESIZE:
-    lock_acquire(&filesys_lock);
     checkbytes(st, 8);
+    lock_acquire(&filesys_lock);
     f->eax = filesize(stkcast(st +  4, int));
     lock_release(&filesys_lock);
     break;
   case SYS_READ:
-    lock_acquire(&filesys_lock);
     checkbytes(st, 16);
+    f->eax = stdin_and_check(stkcast(st + 4, uint32_t), stkcast(st + 8, void *), stkcast(st + 12, size_t));
+
+    if (f->eax != -1) {
+      break;
+    }
+
+    lock_acquire(&filesys_lock);
     f->eax = read(stkcast(st + 4, int), stkcast(st + 8, void *), stkcast(st + 12, unsigned));
     lock_release(&filesys_lock);
     break;
@@ -145,6 +152,33 @@ syscall_handler (struct intr_frame *f)
     thread_exit ();
     break;
   }
+}
+
+int stdin_and_check(int fd, void *buffer, unsigned length)
+{
+  if (buffer == NULL || buffer > PHYS_BASE) {
+    exit(-1);
+  }
+
+  if (fd == 0) {
+    for (int i = 0; i < length; i++) {
+      if (put_user(buffer + i, input_getc()) == false) {
+        return i;
+      }
+    }
+    return length;
+  }
+
+  if (fd == 1) {
+    return 0;
+  }
+
+  for (int i = 0; i < length; i++) {
+    if (put_user(buffer + i, 0) == false) {
+      exit(-1);
+    }
+  }
+  return -1;
 }
 
 int stdout_and_check(int fd, const void *buffer, unsigned length)
@@ -191,12 +225,12 @@ void exit(int status)
 
 pid_t exec (const char *file)
 {
-  intr_disable();
   //struct lock lk;
   //lock_init(&lk);
   //struct condition cond;
   struct semaphore sema;
   char *checkf = file;
+
   sema_init(&sema, 0);
   while (get_user(checkf) != 0) {
     if (get_user(checkf) == -1) {
@@ -212,23 +246,32 @@ pid_t exec (const char *file)
   }
 
   strlcpy(file_mod, file, PGSIZE);
-  pid_t pid = process_execute(file_mod);
-  palloc_free_page(file_mod);
+
+  struct thread *t = NULL;
+
+  /** @warning */
+  pid_t pid;
+  intr_disable();
+  pid = process_execute(file_mod);
 
   if (pid == -1) {
+    intr_enable();
+    palloc_free_page(file_mod);
     return -1;
   }
 
-  struct thread *t = NULL;
-  void *args[2];
-  args[0] = &t;
-  args[1] = &pid;
+  /* void *args[2]; */
+  /* args[0] = &t; */
+  /* args[1] = &pid; */
   //thread_foreach(get_thread_with_id, args);
-  t = thread_current()->child;
-  thread_current()->child = NULL;
   t->sema_parent = &sema;
   intr_enable();
-  
+  /** @warning */
+
+  thread_current()->child = NULL;
+  t = thread_current()->child;
+
+  palloc_free_page(file_mod);
   sema_down(&sema);
 
   if (search_pstate(thread_current(), pid)->descriptor.child == 0) {
@@ -325,28 +368,28 @@ int filesize (int fd)
 
 int read (int fd, void *buffer, unsigned length)
 {
-  if (buffer == NULL || buffer > PHYS_BASE) {
-    exit(-1);
-  }
+  /* if (buffer == NULL || buffer > PHYS_BASE) { */
+  /*   exit(-1); */
+  /* } */
 
-  if (fd == 0) {
-    for (int i = 0; i < length; i++) {
-      if (put_user(buffer + i, input_getc()) == false) {
-        return i;
-      }
-    }
-    return length;
-  }
+  /* if (fd == 0) { */
+  /*   for (int i = 0; i < length; i++) { */
+  /*     if (put_user(buffer + i, input_getc()) == false) { */
+  /*       return i; */
+  /*     } */
+  /*   } */
+  /*   return length; */
+  /* } */
 
-  if (fd == 1) {
-    return 0;
-  }
+  /* if (fd == 1) { */
+  /*   return 0; */
+  /* } */
 
-  for (int i = 0; i < length; i++) {
-    if (put_user(buffer +  i, 0) == false) {
-      exit(-1);
-    }
-  }
+  /* for (int i = 0; i < length; i++) { */
+  /*   if (put_user(buffer +  i, 0) == false) { */
+  /*     exit(-1); */
+  /*   } */
+  /* } */
 
   struct thread *t = thread_current();
   unsigned i = ((fd_t) fd).descriptor.index;
