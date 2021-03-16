@@ -31,6 +31,7 @@ typedef union {
 void checkbytes(void *, int);
 int stdout_and_check(int fd, const void *buffer, unsigned length);
 int stdin_and_check(int fd, void *buffer, unsigned length);
+void check_file(char *file);
 struct lock filesys_lock;
 /** @colorados */
 
@@ -83,6 +84,9 @@ syscall_handler (struct intr_frame *f)
     break;
   case SYS_CREATE:
     checkbytes(st, 12);
+
+    check_file(stkcast(st + 4, char *));
+
     lock_acquire(&filesys_lock);
     f->eax = create(stkcast(st + 4, char *), stkcast(st + 8, unsigned));
     lock_release(&filesys_lock);
@@ -95,6 +99,7 @@ syscall_handler (struct intr_frame *f)
     break;
   case SYS_OPEN:
     checkbytes(st, 8);
+    check_file(stkcast(st + 4, char *));
     lock_acquire(&filesys_lock);
     f->eax = open(stkcast(st + 4, char *));
     lock_release(&filesys_lock);
@@ -151,6 +156,22 @@ syscall_handler (struct intr_frame *f)
     printf ("system call!\n");
     thread_exit ();
     break;
+  }
+}
+
+void check_file(char *file)
+{
+  char *checkf = file;
+
+  if (file != NULL) {
+    while (get_user(checkf) != 0) {
+      if (get_user(checkf) == -1) {
+        exit(-1);
+      }
+      checkf++;
+    }
+  } else {
+    exit(-1);
   }
 }
 
@@ -248,33 +269,33 @@ pid_t exec (const char *file)
   strlcpy(file_mod, file, PGSIZE);
 
   struct thread *t = NULL;
+  struct thread *cur = thread_current();
 
   /** @warning */
   pid_t pid;
   intr_disable();
   pid = process_execute(file_mod);
 
-  if (pid == -1) {
-    intr_enable();
-    palloc_free_page(file_mod);
-    return -1;
-  }
-
   /* void *args[2]; */
   /* args[0] = &t; */
   /* args[1] = &pid; */
   //thread_foreach(get_thread_with_id, args);
+  t = cur->child;
   t->sema_parent = &sema;
   intr_enable();
   /** @warning */
 
-  thread_current()->child = NULL;
-  t = thread_current()->child;
+  cur->child = NULL;
 
   palloc_free_page(file_mod);
+
+  if (pid == -1) {
+    return -1;
+  }
+
   sema_down(&sema);
 
-  if (search_pstate(thread_current(), pid)->descriptor.child == 0) {
+  if (search_pstate(cur, pid)->descriptor.child == 0) {
     return -1;
   }
 
@@ -289,20 +310,8 @@ int wait (pid_t pid)
 bool create (const char *file, unsigned initial_size)
 {
   bool answer;
-  char *checkf = file;
-  
-  if (file != NULL) {
-    while (get_user(checkf) != 0) {
-      if (get_user(checkf) == -1) {
-        exit(-1);
-      }
-      checkf++;
-    }
-    answer = filesys_create(file, initial_size);
-  } else {
-    exit(-1);
-  }
 
+  answer = filesys_create(file, initial_size);
 
   return answer;
 }
@@ -321,16 +330,16 @@ int open (const char *file)
   fd_t fd;
   fd.value = -1;
 
-  if (file == NULL) {
-    exit(-1);
-  }
+  /* if (file == NULL) { */
+  /*   exit(-1); */
+  /* } */
 
-  while (get_user(checkf) != 0) {
-    if (get_user(checkf) == -1) {
-      exit(-1);
-    }
-    checkf++;
-  }
+  /* while (get_user(checkf) != 0) { */
+  /*   if (get_user(checkf) == -1) { */
+  /*     exit(-1); */
+  /*   } */
+  /*   checkf++; */
+  /* } */
   
   file_open = filesys_open(file);
 
