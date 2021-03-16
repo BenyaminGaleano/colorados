@@ -482,6 +482,16 @@ void sys_closef(void *f)
   lock_release(&filesys_lock);
 }
 
+void fsys_lock(void)
+{
+  lock_acquire(&filesys_lock);
+}
+
+void fsys_unlock(void)
+{
+  lock_release(&filesys_lock);
+}
+
 void close (int fd)
 {
   fd_t fdes = (fd_t)fd;

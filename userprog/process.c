@@ -231,17 +231,26 @@ process_exit (void)
     lock_release(l);
   }
 
+  fsys_lock();
   if (cur->exec_file != NULL)
   {
-    sys_closef(cur->exec_file);
+    /* sys_closef(cur->exec_file); */
+    file_close(cur->exec_file);
   }
 
-  for (int i = 0; i < cur->afid + 1; i++) {
-    if (stkcast(cur->files + i*4, struct file *) != NULL) {
-      sys_closef(stkcast(cur->files + i*4, struct file *));
+  /* printf("puntero %p\n", cur->files); */
+
+  if (cur->files != NULL)
+    for (int i = 0; i < cur->afid + 1; i++) {
+      if (stkcast(cur->files + i*4, struct file *) != NULL) {
+        /* sys_closef(stkcast(cur->files + i*4, struct file *)); */
+        file_close(stkcast(cur->files + i * 4, struct file *));
+      }
     }
-  }
-  
+
+  fsys_unlock();
+
+
   palloc_free_page(cur->files);
 
   palloc_free_page(cur->childsexit);
