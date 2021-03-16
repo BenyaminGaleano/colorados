@@ -93,6 +93,8 @@ syscall_handler (struct intr_frame *f)
     break;
   case SYS_REMOVE:
     checkbytes(st, 8);
+    check_file(stkcast(st + 4, char *));
+
     lock_acquire(&filesys_lock);
     f->eax = remove(stkcast(st + 4, char *));
     lock_release(&filesys_lock);
@@ -100,6 +102,7 @@ syscall_handler (struct intr_frame *f)
   case SYS_OPEN:
     checkbytes(st, 8);
     check_file(stkcast(st + 4, char *));
+
     lock_acquire(&filesys_lock);
     f->eax = open(stkcast(st + 4, char *));
     lock_release(&filesys_lock);
