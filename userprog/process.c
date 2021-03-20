@@ -84,15 +84,9 @@ start_process (void *file_name_)
   size_t tlen;
   if (success != 1)
   {
-    //cond_signal(t->cond_var, NULL);
     goto free_page;
   }
-  /*
-  if (t->cond_var != NULL)
-  {
-    cond_signal(t->cond_var, NULL);
-  }
-  */
+  
   char **spaux = if_.esp - 1000; // 1kB
 
   if_.esp -= strlen(token) + 1;
@@ -139,8 +133,6 @@ start_process (void *file_name_)
       you need to add to a realpage stack address
    */
 
-  /* hex_dump(PHYS_BASE - (uint32_t)(((uint8_t *)PHYS_BASE) - ((uint32_t)if_.esp)), if_.esp, (uint32_t)(((uint8_t *)PHYS_BASE) - ((uint32_t)if_.esp)), true); */
-
   t->files = palloc_get_page(PAL_USER | PAL_ZERO);
   t->afid = 0;
 
@@ -166,7 +158,8 @@ start_process (void *file_name_)
     sema_up(t->sema_parent);
   }
 
-  /* printf("A ver si el gfe se esperó o se fue por los cigarros\n"); */
+  t->sema_parent = NULL;
+
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its

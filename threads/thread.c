@@ -389,7 +389,6 @@ thread_create (const char *name, int priority,
   sf->ebp = 0;
 
   t->parent = &thread_current()->I;
-  /* t->parent_id = t->father->tid; */
   (*t->parent)->child = t;
   if ((*t->parent)->childsexit == NULL) {
     (*t->parent)->childsexit = palloc_get_page(PAL_USER | PAL_ZERO);
@@ -773,6 +772,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->childsexit = NULL;
   t->estorbo = 0;
   t->files=NULL;
+  t->sema_parent = NULL;
   t->I=t;
   t->parent=NULL;
   t->exit_state = -1;

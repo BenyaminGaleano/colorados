@@ -249,9 +249,6 @@ void exit(int status)
 
 pid_t exec (const char *file)
 {
-  //struct lock lk;
-  //lock_init(&lk);
-  //struct condition cond;
   struct semaphore sema;
   char *checkf = file;
 
@@ -278,11 +275,7 @@ pid_t exec (const char *file)
   pid_t pid;
   intr_disable();
   pid = process_execute(file_mod);
-
-  /* void *args[2]; */
-  /* args[0] = &t; */
-  /* args[1] = &pid; */
-  //thread_foreach(get_thread_with_id, args);
+  
   t = cur->child;
   t->sema_parent = &sema;
   intr_enable();
