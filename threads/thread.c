@@ -256,7 +256,7 @@ void sort_list_by_priority(void){
   list_sort(&ready_list,sort_list,NULL);
 }
 
-bool max_comparator(const struct list_elem * a, const struct list_elem *b, void * aux)
+bool max_comparator(const struct list_elem * a, const struct list_elem *b, void * aux UNUSED)
 {
   struct thread *t1=list_entry(a, struct thread, elem);
   struct thread *t2=list_entry(b, struct thread, elem);
@@ -530,9 +530,8 @@ thread_exit (void)
 }
 
 bool
-sort_list (const struct list_elem * a, const struct list_elem *b, void * aux)
+sort_list (const struct list_elem * a, const struct list_elem *b, void * aux UNUSED)
 {
-  struct thread *threadCurrent = thread_current();
   return list_entry(a, struct thread, elem) ->priority > list_entry(b, struct thread, elem) ->priority;
 }
 

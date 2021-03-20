@@ -231,7 +231,7 @@ process_exit (void)
   }
 
   if (cur->files != NULL)
-    for (int i = 0; i < cur->afid + 1; i++) {
+    for (unsigned int i = 0; i < cur->afid + 1; i++) {
       if (stkcast(cur->files + i*4, struct file *) != NULL) {
         file_close(stkcast(cur->files + i * 4, struct file *));
       }

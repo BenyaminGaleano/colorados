@@ -345,9 +345,7 @@ void
 cond_signal (struct condition *cond, struct lock *lock UNUSED) 
 {
   ASSERT (cond != NULL);
-  //ASSERT (lock != NULL);
   ASSERT (!intr_context ());
-  //ASSERT (lock_held_by_current_thread (lock));
 
   if (!list_empty (&cond->waiters)) {
     list_sort(&cond->waiters, sort_sema_items, NULL);
@@ -356,7 +354,7 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
 }
 
 bool
-sort_sema_items(const struct list_elem *a, const struct list_elem *b, void *aux)
+sort_sema_items(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
 {
   return list_entry(a, struct semaphore_elem, elem)->t->priority >
          list_entry(b, struct semaphore_elem, elem)->t->priority;

@@ -14,6 +14,7 @@
 #include "filesys/file.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "devices/shutdown.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -183,7 +184,7 @@ int stdin_and_check(int fd, void *buffer, unsigned length)
   }
 
   if (fd == 0) {
-    for (int i = 0; i < length; i++) {
+    for (unsigned int i = 0; i < length; i++) {
       if (put_user(buffer + i, input_getc()) == false) {
         return i;
       }
@@ -195,7 +196,7 @@ int stdin_and_check(int fd, void *buffer, unsigned length)
     return 0;
   }
 
-  for (int i = 0; i < length; i++) {
+  for (unsigned int i = 0; i < length; i++) {
     if (put_user(buffer + i, 0) == false) {
       exit(-1);
     }
@@ -209,7 +210,7 @@ int stdout_and_check(int fd, const void *buffer, unsigned length)
     return 0;
   }
 
-  for (int i = 0; i < length; i++) {
+  for (unsigned int i = 0; i < length; i++) {
     if (get_user(buffer + i) == -1) {
       exit(-1);
     }
@@ -320,7 +321,6 @@ int open (const char *file)
 {
   struct file *file_open;
   struct thread *t = thread_current();
-  char *checkf = file;
   fd_t fd;
   fd.value = -1;
   

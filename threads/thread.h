@@ -180,6 +180,7 @@ void update_priority(struct thread *t, void *aux);
 void update_priority_forall(void);
 void update_recent_cpu(void);
 void update_load_avg(void);
+void update_recent_cpu_for(struct thread *t, void *aux);
 
 typedef union {
    struct {
