@@ -176,7 +176,6 @@ void update_recent_cpu_for(struct thread *t, void *aux UNUSED) {
 
 void update_recent_cpu(void)
 {
-  /* struct thread *cur = thread_current(); */
   thread_foreach(update_recent_cpu_for, NULL);
 }
 
@@ -191,10 +190,8 @@ void update_load_avg(void)
     queue--;
   }
 
-  /* load_avg = (59 * load_avg)/60 + int_to_pq(run_val + list_size(&ready_list)) / 60; */
   load_avg = (59 * load_avg) / 60 + int_to_pq(run_val) / 60;
 
-  /* load_avg = pq_mul(pq_div(int_to_pq(59), int_to_pq(60)), load_avg) + int_to_pq(run_val) / 60; */
 }
 
 void increment_recent_cpu(void)
@@ -371,8 +368,7 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
-  /* t->pid = t->tid; */
-
+  
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
   kf->eip = NULL;
@@ -425,10 +421,7 @@ thread_create (const char *name, int priority,
   }
 
   yield_if_iam_manco(priority);
-  /* if(priority > thread_get_priority() && !thread_mlfqs) */
-  /* { */
-  /*   thread_yield(); */
-  /* } */
+  
   return tid;
 }
 
@@ -475,21 +468,11 @@ thread_unblock (struct thread *t)
       list_insert_ordered (&ready_list, &t->elem, sort_list, NULL);
   } else
   {
-      /* list_push_back (&ready_list, &t->elem); */
       list_push_back(mlfqs_queues + t->priority, &t->elem);
   }
   t->status = THREAD_READY;
   intr_set_level (old_level);
 
-  /*
-  if(!thread_mlfqs)
-  {
-    if(t->priority > thread_get_priority())
-    {
-      thread_yield();
-    }
-  }
-  */
 }
 
 /* Returns the name of the running thread. */
@@ -578,7 +561,6 @@ thread_yield (void)
   } else
   {
     if (cur != idle_thread)
-      /* list_push_back (&ready_list, &cur->elem); */
       list_push_back(mlfqs_queues + cur->priority, &cur->elem);
   }
   cur->status = THREAD_READY;

@@ -92,7 +92,6 @@ kill (struct intr_frame *f)
       /** @colorados */
       exit(-1);
       /** @colorados */
-      /* thread_exit ();  */
 
     case SEL_KCSEG:
       /* Kernel's code segment, which indicates a kernel bug.

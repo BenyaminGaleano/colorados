@@ -55,14 +55,12 @@ syscall_handler (struct intr_frame *f)
 {
   /** @colorados */
   void *st = f->esp;
-  // check esp
   if (st + 16 > PHYS_BASE) {
     exit(-1);
   }
 
   checkbytes(st, 4);
 
-  /* printf("Syscall into stack %d\n", stkcast(st, int)); */
   /** @colorados */
 
   switch (stkcast(st, uint32_t))
@@ -325,17 +323,6 @@ int open (const char *file)
   char *checkf = file;
   fd_t fd;
   fd.value = -1;
-
-  /* if (file == NULL) { */
-  /*   exit(-1); */
-  /* } */
-
-  /* while (get_user(checkf) != 0) { */
-  /*   if (get_user(checkf) == -1) { */
-  /*     exit(-1); */
-  /*   } */
-  /*   checkf++; */
-  /* } */
   
   file_open = filesys_open(file);
 
@@ -350,7 +337,6 @@ int open (const char *file)
     fd.descriptor.is_fd = 1;
     fd.descriptor.index = t->afid++;
     stkcast(t->files + fd.descriptor.index*4, void *) = file_open;
-    /* file_deny_write(file_open); */
   }
 
   return fd.value;
@@ -373,28 +359,6 @@ int filesize (int fd)
 
 int read (int fd, void *buffer, unsigned length)
 {
-  /* if (buffer == NULL || buffer > PHYS_BASE) { */
-  /*   exit(-1); */
-  /* } */
-
-  /* if (fd == 0) { */
-  /*   for (int i = 0; i < length; i++) { */
-  /*     if (put_user(buffer + i, input_getc()) == false) { */
-  /*       return i; */
-  /*     } */
-  /*   } */
-  /*   return length; */
-  /* } */
-
-  /* if (fd == 1) { */
-  /*   return 0; */
-  /* } */
-
-  /* for (int i = 0; i < length; i++) { */
-  /*   if (put_user(buffer +  i, 0) == false) { */
-  /*     exit(-1); */
-  /*   } */
-  /* } */
 
   struct thread *t = thread_current();
   unsigned i = ((fd_t) fd).descriptor.index;
@@ -415,21 +379,6 @@ int read (int fd, void *buffer, unsigned length)
 
 int write (int fd, const void *buffer, unsigned length)
 {
-  /* if (fd == 0) { */
-  /*   return 0; */
-  /* } */
-
-  /* for (int i = 0; i < length; i++) { */
-  /*   if (get_user(buffer + i) == -1) { */
-  /*     exit(-1); */
-  /*   } */
-  /* } */
-
-  /* if (fd == 1) { */
-  /*   putbuf(buffer, length); */
-  /*   return length; */
-  /* } */
-
   struct thread *t = thread_current();
   fd_t fdes = (fd_t)fd;
   struct file *f;
@@ -500,7 +449,6 @@ void close (int fd)
     return;
   }
 
-  /* file_allow_write(f); */
   file_close(f);
   stkcast(t->files + fdes.descriptor.index * 4, void *) = NULL;
 }
