@@ -20,7 +20,6 @@ jobs:
       - name: 'Ejecutar tests'
         working-directory: '/home/runner/pintos/${{ env.phase }}/build'
         run: |
-          source ~/.bashrc
           which pintos
           cat ~/.bashrc
           ls ~/pintos/utils/pintos -l
