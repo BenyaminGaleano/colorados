@@ -8,7 +8,6 @@ jobs:
     runs-on: 'ubuntu-16.04'
     env:
       phase: 'userprog'
-      PINTOSPH: ${{ env.phase }}
     steps:
       - uses: 'actions/checkout@v2'
       # - uses: './.github/qemu-install'
@@ -20,6 +19,8 @@ jobs:
         run: 'make'
       - name: 'Ejecutar tests'
         working-directory: '/home/runner/pintos/${{ env.phase }}/build'
+        env:
+          PINTOSPH: ${{ env.phase }}
         run: |
           PATH=$PATH:~/pintos/utils
           #which pintos
