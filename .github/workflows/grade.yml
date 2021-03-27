@@ -23,13 +23,12 @@ jobs:
           PINTOSPH: ${{ env.phase }}
         run: |
           PATH=$PATH:~/pintos/utils
-          #which pintos
           echo $PINTOSPH
           cat ~/.bashrc
           ls ~/pintos/utils/pintos -l
-          # pintos -v -T 1 -- run alarm-multiple
+          pintos -v -T 1 -- run alarm-multiple
           make grade
-        # continue-on-error: true
+        continue-on-error: true
       - name: 'Que es lo que pasó?'
         working-directory: '/home/runner/pintos/${{ env.phase }}/build'
         run: 'cat tests/userprog/args-none.errors'
