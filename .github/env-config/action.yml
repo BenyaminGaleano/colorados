@@ -26,12 +26,9 @@ runs:
         echo "export PATH=\$PATH:$HOME/pintos/utils" >> .bashrc
         echo "PINTOSPH=\"$phase\" # stop@000001" >> .bashrc
         echo "export PINTOSPH" >> .bashrc
-    - name: 'Mover pintos hacia home'
+    - name: 'Crear enlace hacia home'
       shell: 'bash'
-      run: |
-        MYDIR=`pwd`$src
-        mv $MYDIR ~/pintos
-        ln -s ~/pintos $MYDIR
+      run: 'ln -s  `pwd`$src ~/pintos'
     # - name: 'Crear enlace entre bash y sh'
       # shell: 'bash'
       # run: 'sudo ln -s `which bash` /bin/sh'

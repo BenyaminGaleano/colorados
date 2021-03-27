@@ -19,8 +19,10 @@ jobs:
         run: 'make'
       - name: 'Ejecutar tests'
         working-directory: '/home/runner/pintos/${{ env.phase }}/build'
-        shell: sh
-        run: 'make grade'
+        run: |
+          source ~/.bashrc
+          which pintos
+          make grade
         continue-on-error: true
       - name: 'Que es lo que pasó?'
         working-directory: '/home/runner/pintos/${{ env.phase }}/build'
