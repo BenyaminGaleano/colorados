@@ -25,7 +25,7 @@ jobs:
           cat ~/.bashrc
           ls ~/pintos/utils/pintos -l
           # make grade
-        continue-on-error: true
+        # continue-on-error: true
       - name: 'Que es lo que pasó?'
         working-directory: '/home/runner/pintos/${{ env.phase }}/build'
         run: 'cat tests/userprog/args-none.errors'
