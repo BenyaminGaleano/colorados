@@ -1,0 +1,37 @@
+name: 'Configuración de Ambiente'
+author: 'Colorados team'
+description: 'Preparación de ambiente para correr proyecto pintos'
+# Entradas para la configuración
+inputs:
+  src:
+    description: 'root de las carpetas de las fases de PintOS relativo al repositorio'
+    required: false 
+    default: '/'
+  phase:
+    description: 'nombre de la carpeta (threads, userprog, vm, filesys)'
+    required: true
+# Pasos para configurar el ambiente
+runs:
+  using: 'composite'
+  steps:
+    - name: 'Modificando ~/.bashrc'
+      working-directory: '/home/runner'
+      shell: 'bash'
+      env:
+        phase: ${{ inputs.phase }}
+        src: ${{ inputs.src }}
+      run: |
+        echo "$phase"
+        echo "$src"
+        echo "export PATH=\$PATH:$HOME/pintos/utils" >> .bashrc
+        echo "PINTOSPH=\"$phase\" # stop@000001" >> .bashrc
+        echo "export PINTOSPH" >> .bashrc
+    - name: 'Crear enlace hacia home'
+      shell: 'bash'
+      run: 'ln -s  `pwd`$src ~/pintos'
+    - name: 'compilando utilidades'
+      shell: 'bash'
+      run: |
+        cd ~/pintos/utils
+        make
+
