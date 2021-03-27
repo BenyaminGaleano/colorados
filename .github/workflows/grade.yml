@@ -21,7 +21,7 @@ jobs:
         working-directory: '/home/runner/pintos/${{ env.phase }}/build'
         run: |
           source ~/.bashrc
-          which pintos
+          #which pintos
           cat ~/.bashrc
           ls ~/pintos/utils/pintos -l
           # make grade
