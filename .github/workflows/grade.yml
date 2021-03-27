@@ -3,15 +3,15 @@ name: 'Calificación de las fases del proyecto'
 on: push
 
 jobs:
-  userprog:
-    name: 'Fase: programas de usuario'
+  threads:
+    name: 'Fase: Threads'
     runs-on: 'ubuntu-16.04'
     env:
-      phase: 'userprog'
+      phase: 'threads'
     steps:
       - name: 'Clonando repositorio'
         uses: 'actions/checkout@v2'
-      - name: 'Instalando de Qemu'
+      - name: 'Instalando Qemu'
         uses: './.github/qemu-install'
       - name: 'Configurando entorno y ejecutando tests'
         uses: './.github/env-config'
@@ -21,4 +21,56 @@ jobs:
         working-directory: '/home/runner/pintos/${{ env.phase }}/build'
         run: 'cat grade'
 
+  userprog:
+    name: 'Fase: User Programs'
+    runs-on: 'ubuntu-16.04'
+    env:
+      phase: 'userprog'
+    steps:
+      - name: 'Clonando repositorio'
+        uses: 'actions/checkout@v2'
+      - name: 'Instalando Qemu'
+        uses: './.github/qemu-install'
+      - name: 'Configurando entorno y ejecutando tests'
+        uses: './.github/env-config'
+        with:
+          phase: '${{ env.phase }}'
+      - name: 'Score'
+        working-directory: '/home/runner/pintos/${{ env.phase }}/build'
+        run: 'cat grade'
 
+  vm:
+    name: 'Fase: Virtual Memory'
+    runs-on: 'ubuntu-16.04'
+    env:
+      phase: 'vm'
+    steps:
+      - name: 'Clonando repositorio'
+        uses: 'actions/checkout@v2'
+      - name: 'Instalando Qemu'
+        uses: './.github/qemu-install'
+      - name: 'Configurando entorno y ejecutando tests'
+        uses: './.github/env-config'
+        with:
+          phase: '${{ env.phase }}'
+      - name: 'Score'
+        working-directory: '/home/runner/pintos/${{ env.phase }}/build'
+        run: 'cat grade'
+
+  filesys:
+    name: 'Fase: File System'
+    runs-on: 'ubuntu-16.04'
+    env:
+      phase: 'filesys'
+    steps:
+      - name: 'Clonando repositorio'
+        uses: 'actions/checkout@v2'
+      - name: 'Instalando Qemu'
+        uses: './.github/qemu-install'
+      - name: 'Configurando entorno y ejecutando tests'
+        uses: './.github/env-config'
+        with:
+          phase: '${{ env.phase }}'
+      - name: 'Score'
+        working-directory: '/home/runner/pintos/${{ env.phase }}/build'
+        run: 'cat grade'
