@@ -16,7 +16,11 @@ jobs:
           phase: '${{ env.phase }}'
       - name: 'Correr tests'
         working-directory: '/home/runner/pintos/${{ env.phase }}/'
+        run: 'make'
+      - name: 'Mostrar Score'
+        working-directory: '/home/runner/pintos/${{ env.phase }}/build'
         run: 'make grade'
+        continue-on-error: true
       - name: 'Mostrar Score'
         working-directory: '/home/runner/pintos/${{ env.phase }}/build'
         run: 'cat grade'
