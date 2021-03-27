@@ -10,7 +10,7 @@ jobs:
       phase: 'userprog'
     steps:
       - uses: 'actions/checkout@v2'
-      - uses: './.github/qemu-install'
+      # - uses: './.github/qemu-install'
       - uses: './.github/env-config'
         with:
           phase: '${{ env.phase }}'
@@ -22,6 +22,8 @@ jobs:
         run: |
           source ~/.bashrc
           which pintos
+          cat ~/.bashrc
+          ls ~/pintos/utils/pintos -l
           make grade
         continue-on-error: true
       - name: 'Que es lo que pasó?'
