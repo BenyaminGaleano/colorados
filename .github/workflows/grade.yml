@@ -14,13 +14,16 @@ jobs:
       - uses: './.github/env-config'
         with:
           phase: '${{ env.phase }}'
-      - name: 'Correr tests'
+      - name: 'Compilar tests'
         working-directory: '/home/runner/pintos/${{ env.phase }}/'
         run: 'make'
-      - name: 'Mostrar Score'
+      - name: 'Ejecutar tests'
         working-directory: '/home/runner/pintos/${{ env.phase }}/build'
         run: 'make grade'
         continue-on-error: true
+      - name: 'Que es lo que pasó?'
+        working-directory: '/home/runner/pintos/${{ env.phase }}/build'
+        run: 'cat tests/userprog/args-none.errors'
       - name: 'Mostrar Score'
         working-directory: '/home/runner/pintos/${{ env.phase }}/build'
         run: 'cat grade'
