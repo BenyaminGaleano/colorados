@@ -23,9 +23,11 @@ runs:
         cd ~/pintos/utils
         make
     - name: 'Compilar tests'
+      shell: 'bash'
       working-directory: '/home/runner/pintos/${{ inputs.phase }}/'
       run: 'make'
     - name: 'Ejecutar tests'
+      shell: 'bash'
       working-directory: '/home/runner/pintos/${{ inputs.phase }}/build'
       env:
         PINTOSPH: ${{ inputs.phase }}
