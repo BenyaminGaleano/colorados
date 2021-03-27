@@ -22,6 +22,7 @@ jobs:
         run: |
           source ~/.bashrc
           #which pintos
+          ls ~/pintos
           cat ~/.bashrc
           ls ~/pintos/utils/pintos -l
           pintos -v -T 1 -- run alarm-multiple
