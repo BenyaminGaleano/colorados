@@ -24,6 +24,7 @@ jobs:
           #which pintos
           cat ~/.bashrc
           ls ~/pintos/utils/pintos -l
+          pintos -v -T 1 -- run alarm-multiple
           # make grade
         # continue-on-error: true
       - name: 'Que es lo que pasó?'
