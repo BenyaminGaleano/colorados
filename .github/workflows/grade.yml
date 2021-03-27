@@ -20,10 +20,11 @@ jobs:
       - name: 'Ejecutar tests'
         working-directory: '/home/runner/pintos/${{ env.phase }}/build'
         run: |
+          source ~/.bashrc
           which pintos
           cat ~/.bashrc
           ls ~/pintos/utils/pintos -l
-          make grade
+          # make grade
         continue-on-error: true
       - name: 'Que es lo que pasó?'
         working-directory: '/home/runner/pintos/${{ env.phase }}/build'
