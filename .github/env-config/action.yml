@@ -29,6 +29,9 @@ runs:
     - name: 'Crear enlace hacia home'
       shell: 'bash'
       run: 'ln -s  `pwd`$src ~/pintos'
+    - name: 'Crear enlace entre bash y sh'
+      shell: 'bash'
+      run: 'sudo ln -s `which bash` /bin/sh'
     - name: 'compilando utilidades'
       shell: 'bash'
       run: |
