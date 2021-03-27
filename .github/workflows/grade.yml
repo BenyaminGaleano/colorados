@@ -9,28 +9,15 @@ jobs:
     env:
       phase: 'userprog'
     steps:
-      - uses: 'actions/checkout@v2'
-      - uses: './.github/qemu-install'
-      - uses: './.github/env-config'
+      - name: 'Clonando repositorio'
+        uses: 'actions/checkout@v2'
+      - name: 'Instalando de Qemu'
+        uses: './.github/qemu-install'
+      - name: 'Configurando entorno y ejecutando tests'
+        uses: './.github/env-config'
         with:
           phase: '${{ env.phase }}'
-      - name: 'Compilar tests'
-        working-directory: '/home/runner/pintos/${{ env.phase }}/'
-        run: 'make'
-      - name: 'Ejecutar tests'
-        working-directory: '/home/runner/pintos/${{ env.phase }}/build'
-        env:
-          PINTOSPH: ${{ env.phase }}
-        run: |
-          PATH=$PATH:~/pintos/utils
-          # ls ~/pintos/utils/pintos -l
-          # pintos -v -T 1 -- run alarm-multiple
-          make grade
-        continue-on-error: true
-      - name: 'Que es lo que pasó?'
-        working-directory: '/home/runner/pintos/${{ env.phase }}/build'
-        run: 'cat tests/userprog/args-none.errors'
-      - name: 'Mostrar Score'
+      - name: 'Score'
         working-directory: '/home/runner/pintos/${{ env.phase }}/build'
         run: 'cat grade'
 
