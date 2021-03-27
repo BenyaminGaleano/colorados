@@ -8,6 +8,7 @@ jobs:
     runs-on: 'ubuntu-16.04'
     env:
       phase: 'userprog'
+      PINTOSPH: ${{ env.phase }}
     steps:
       - uses: 'actions/checkout@v2'
       # - uses: './.github/qemu-install'
@@ -20,13 +21,13 @@ jobs:
       - name: 'Ejecutar tests'
         working-directory: '/home/runner/pintos/${{ env.phase }}/build'
         run: |
-          source ~/.bashrc
+          PATH=$PATH:~/pintos/utils
           #which pintos
-          ls ~/pintos
+          echo $PINTOSPH
           cat ~/.bashrc
           ls ~/pintos/utils/pintos -l
-          pintos -v -T 1 -- run alarm-multiple
-          # make grade
+          # pintos -v -T 1 -- run alarm-multiple
+          make grade
         # continue-on-error: true
       - name: 'Que es lo que pasó?'
         working-directory: '/home/runner/pintos/${{ env.phase }}/build'
