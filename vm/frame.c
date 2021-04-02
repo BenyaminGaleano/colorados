@@ -6,6 +6,9 @@ struct hash frame_table;
 struct lock ft_lock;
 bool initialized = false;
 
+#define lock_ft() lock_acquire(&ft_lock)
+#define unlock_ft() lock_release(&ft_lock)
+
 unsigned ft_hash (const struct hash_elem *, void *aux);
 bool ft_less (const struct hash_elem *, const struct hash_elem *, void *);
 
@@ -67,7 +70,7 @@ ft_insert(void *frame)
   current->owner = thread_current();
   current->address = frame;
 
-  lock_acquire(&ft_lock);
+  lock_ft();
 
   curr = hash_insert(&frame_table, &current->helem); 
 
@@ -79,7 +82,7 @@ ft_insert(void *frame)
     current = fte_hvalue(curr);
   }
 
-  lock_release(&ft_lock);
+  unlock_ft();
 
   return current;
 }
@@ -94,7 +97,7 @@ ft_remove(void *frame)
 
   target.address = frame;
 
-  lock_acquire(&ft_lock);
+  lock_ft();
 
   curr = hash_delete(&frame_table, &target.helem); 
 
@@ -103,7 +106,7 @@ ft_remove(void *frame)
     list_remove(&fte->elem);
   }
 
-  lock_release(&ft_lock);
+  unlock_ft();
 
   return fte;
 }
@@ -120,6 +123,40 @@ frame_lookup (void *address)
   return e != NULL ? fte_hvalue(e) : NULL;
 }
 
+
+struct frame *
+frame_change_owner(struct frame* frame)
+{
+  if (frame == NULL) {
+    return NULL;
+  }
+
+  lock_ft();
+
+  list_remove(&frame->elem);
+  frame->owner = thread_current();
+  list_push_back(&frame->owner->frames, &frame->elem);
+
+  unlock_ft();
+
+  return frame;
+}
+
+
+struct frame *
+ft_update(void *frame_addr)
+{
+  struct frame *f = NULL;
+  
+  f = frame_lookup(frame_addr);
+
+  if (f == NULL)
+    return NULL;
+
+  f = frame_change_owner(f);
+
+  return f;
+}
 
 
 

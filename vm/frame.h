@@ -16,9 +16,12 @@ struct frame {
 
 void init_frame_table(void);
 
-struct frame *ft_insert(void *frame);
-struct frame *ft_remove(void *frame);
-struct frame *frame_lookup(void *frame);
+struct frame *ft_insert(void *frame_addr);
+struct frame *ft_remove(void *frame_addr);
+struct frame *ft_update(void *frame_addr);
+struct frame *frame_lookup(void *frame_addr);
+
+struct frame *frame_change_owner(struct frame *frame);
 
 struct frame *fte_hvalue(const struct hash_elem *elem);
 struct frame *fte_lvalue(const struct list_elem *elem);
