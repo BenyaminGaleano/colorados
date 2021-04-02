@@ -300,9 +300,6 @@ thread_start (void)
   sema_init (&idle_started, 0);
   thread_create ("idle", PRI_MIN, idle, &idle_started);
 
-#ifdef VM
-  init_frame_table();
-#endif
   /* Start preemptive thread scheduling. */
   intr_enable ();
 
@@ -390,6 +387,10 @@ thread_create (const char *name, int priority,
   sf = alloc_frame (t, sizeof *sf);
   sf->eip = switch_entry;
   sf->ebp = 0;
+
+#ifdef VM
+  init_frame_table();
+#endif
 
   t->parent = &thread_current()->I;
   (*t->parent)->child = t;
