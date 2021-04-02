@@ -103,8 +103,6 @@ thread_init (void)
   list_init (&waiting_room);
   list_init (&all_list);
 
-  init_frame_table();
-
   for (int pri = PRI_MIN; pri <= PRI_MAX; pri++) {
     list_init(mlfqs_queues + pri);
   }
@@ -299,6 +297,7 @@ thread_start (void)
   sema_init (&idle_started, 0);
   thread_create ("idle", PRI_MIN, idle, &idle_started);
 
+  init_frame_table();
   /* Start preemptive thread scheduling. */
   intr_enable ();
 

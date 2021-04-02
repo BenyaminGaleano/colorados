@@ -1,6 +1,7 @@
 #include "vm/frame.h"
 
-static struct hash frame_table;
+struct hash frame_table;
+bool initialized = false;
 
 unsigned
 ft_hash (const struct hash_elem *f_, void *aux UNUSED)
@@ -24,7 +25,11 @@ ft_less (
 void
 init_frame_table(void)
 {
-  hash_init(&frame_table, ft_hash, ft_less, NULL);
+  if (!initialized) 
+  {
+    hash_init(&frame_table, ft_hash, ft_less, NULL);
+    initialized = true;
+  }
 }
 
 
