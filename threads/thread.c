@@ -759,6 +759,9 @@ init_thread (struct thread *t, const char *name, int priority)
   t->I=t;
   t->parent=NULL;
   t->exit_state = -1;
+  /* VM */
+  list_init(&t->frames);
+  /* VM - end */
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);

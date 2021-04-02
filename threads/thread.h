@@ -111,6 +111,11 @@ struct thread
     unsigned afid;                      /* available file id (sequential) */
    
     void *childsexit;
+    
+    /* VM */
+    struct list frames;
+
+    /* OS */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
