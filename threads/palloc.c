@@ -154,12 +154,12 @@ palloc_free_multiple (void *pages, size_t page_cnt)
   bitmap_set_multiple (pool->used_map, page_idx, page_cnt, false);
 
 #ifdef VM
-  fte_t *fte = NULL;
+  struct frame *f = NULL;
   if (pool == &user_pool && pages != NULL) {
     for (unsigned i = 0; i < page_cnt; i++) {
-      fte = ft_remove(pages + i*PGSIZE);
-      ASSERT(fte != NULL);
-      free(fte);
+      f = ft_remove(pages + i*PGSIZE);
+      ASSERT(f != NULL);
+      free(f);
     }
   }
 #endif

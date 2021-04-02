@@ -9,11 +9,26 @@ bool initialized = false;
 unsigned ft_hash (const struct hash_elem *, void *aux);
 bool ft_less (const struct hash_elem *, const struct hash_elem *, void *);
 
+
+struct frame *
+fte_hvalue(const struct hash_elem *elem)
+{
+  return elem == NULL ? NULL : hash_entry(elem, struct frame, helem);
+}
+
+
+struct frame *
+fte_lvalue(const struct list_elem *elem)
+{
+  return elem == NULL ? NULL : list_entry(elem, struct frame, elem);
+}
+
+
 unsigned
 ft_hash (const struct hash_elem *f_, void *aux UNUSED)
 {
-  const fte_t *ftentry = hash_entry (f_, fte_t, helem);
-  return hash_bytes (&ftentry->frame, sizeof ftentry->frame);
+  const struct frame *ftentry = hash_entry (f_, struct frame, helem);
+  return hash_bytes (&ftentry->address, sizeof ftentry->address);
 }
 
 
@@ -23,10 +38,10 @@ ft_less (
     const struct hash_elem *b,
     void * aux UNUSED)
 {
-  fte_t *fte1 = hash_entry(a, fte_t, helem);
-  fte_t *fte2 = hash_entry(b, fte_t, helem);
+  struct frame *fte1 = fte_hvalue(a);
+  struct frame *fte2 = fte_hvalue(b);
 
-  return fte1->frame < fte2->frame;
+  return fte1->address < fte2->address;
 }
 
 
@@ -42,15 +57,15 @@ init_frame_table(void)
 }
 
 
-fte_t *
+struct frame *
 ft_insert(void *frame)
 {
-  fte_t *current;
+  struct frame *current;
   struct hash_elem *curr;
   
-  current =  malloc(sizeof(fte_t));
+  current =  malloc(sizeof(struct frame));
   current->owner = thread_current();
-  current->frame = frame;
+  current->address = frame;
 
   lock_acquire(&ft_lock);
 
@@ -61,7 +76,7 @@ ft_insert(void *frame)
     current = NULL;
   } else {
     free(current);
-    current = hash_entry(curr, fte_t, helem);
+    current = fte_hvalue(curr);
   }
 
   lock_release(&ft_lock);
@@ -70,21 +85,21 @@ ft_insert(void *frame)
 }
 
 
-fte_t *
+struct frame *
 ft_remove(void *frame)
 {
-  fte_t *fte = NULL;
-  fte_t target;
+  struct frame *fte = NULL;
+  struct frame target;
   struct hash_elem *curr;
 
-  target.frame = frame;
+  target.address = frame;
 
   lock_acquire(&ft_lock);
 
   curr = hash_delete(&frame_table, &target.helem); 
 
   if (curr != NULL) {
-    fte = hash_entry(curr, fte_t, helem);
+    fte = fte_hvalue(curr);
     list_remove(&fte->elem);
   }
 
@@ -92,6 +107,19 @@ ft_remove(void *frame)
 
   return fte;
 }
+
+
+struct frame *
+frame_lookup (void *address)
+{
+  struct frame f;
+  struct hash_elem *e;
+
+  f.address = address;
+  e = hash_find (&frame_table, &f.helem);
+  return e != NULL ? fte_hvalue(e) : NULL;
+}
+
 
 
 

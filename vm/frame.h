@@ -6,19 +6,22 @@
 #include "threads/thread.h"
 #include "threads/malloc.h"
 
-typedef struct {
+struct frame {
   struct list_elem elem;
   struct hash_elem helem;
-  void *frame;
+  void *address;
   struct thread *owner;
-} fte_t;
+};
 
 
 void init_frame_table(void);
 
-fte_t *ft_insert(void *frame);
+struct frame *ft_insert(void *frame);
+struct frame *ft_remove(void *frame);
+struct frame *frame_lookup(void *frame);
 
-fte_t *ft_remove(void *frame);
+struct frame *fte_hvalue(const struct hash_elem *elem);
+struct frame *fte_lvalue(const struct list_elem *elem);
 
 #endif
 
