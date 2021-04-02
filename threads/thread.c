@@ -17,6 +17,7 @@
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
+#include "vm/frame.h"
 
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
@@ -101,6 +102,8 @@ thread_init (void)
   list_init (&ready_list);
   list_init (&waiting_room);
   list_init (&all_list);
+
+  init_frame_table();
 
   for (int pri = PRI_MIN; pri <= PRI_MAX; pri++) {
     list_init(mlfqs_queues + pri);
