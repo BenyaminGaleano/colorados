@@ -67,6 +67,12 @@ static inline uintptr_t pd_no (const void *va) {
 #define PTE_A 0x20              /* 1=accessed, 0=not acccessed. */
 #define PTE_D 0x40              /* 1=dirty, 0=not dirty (PTEs only). */
 
+/** @colorados */
+#define PTE_SWAP   0x00000200    /* 1=in swap file, 0=not in swap. */
+#define PTE_STACK   0x00000400    /* 1=is stack page, 0=is a normal page. */
+/** @colorados */
+
+
 /* Returns a PDE that points to page table PT. */
 static inline uint32_t pde_create (uint32_t *pt) {
   ASSERT (pg_ofs (pt) == 0);
