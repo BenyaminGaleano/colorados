@@ -5,6 +5,26 @@
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/vaddr.h"
+#include "threads/thread.h"
+#include "threads/palloc.h"
+#include "userprog/pagedir.h"
+
+/** @colorados */
+#define MAX_STACK 0x00800000
+
+static bool
+install_page (void *upage, void *kpage, bool writable)
+{
+  struct thread *t = thread_current ();
+
+  /* Verify that there's not already a page at that virtual
+     address, then map our page there. */
+  return (pagedir_get_page (t->pagedir, upage) == NULL
+          && pagedir_set_page (t->pagedir, upage, kpage, writable));
+}
+
+/** @colorados */
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -111,6 +131,13 @@ kill (struct intr_frame *f)
     }
 }
 
+static inline bool
+check_stack_access(void *esp, void *fault_addr, bool user)
+{
+  return user ? esp - 32 <= fault_addr : thread_current()->st_kernel_save - 32 <= fault_addr;
+}
+
+
 /* Page fault handler.  This is a skeleton that must be filled in
    to implement virtual memory.  Some solutions to project 2 may
    also require modifying this code.
@@ -152,6 +179,24 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
   /** @colorados */
+
+#ifdef VM
+  /* printf("stack %p dir %p\n\n", f->esp, fault_addr); */
+  if (
+      fault_addr > (((uint8_t *) PHYS_BASE) - MAX_STACK) &&
+      fault_addr < PHYS_BASE &&
+      check_stack_access(f->esp, fault_addr, user)) {
+
+    /* printf("Limites %p %p\n\n", (((uint8_t *) PHYS_BASE) - MAX_STACK), PHYS_BASE); */
+    void *npagestk = palloc_get_page(PAL_USER | PAL_ZERO);
+
+    ASSERT(install_page(pg_round_down(fault_addr), npagestk, true));
+    pagedir_set_stack(thread_current()->pagedir, pg_round_down(fault_addr), true);
+
+    return;
+  }
+#endif
+
   if (!user) {
     f->eip = f->eax;
     f->eax = -1;

@@ -56,6 +56,7 @@ syscall_handler (struct intr_frame *f)
 {
   /** @colorados */
   void *st = f->esp;
+  thread_current()->st_kernel_save = st;
   if (st + 16 > PHYS_BASE) {
     exit(-1);
   }
