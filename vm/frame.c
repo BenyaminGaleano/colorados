@@ -55,6 +55,7 @@ init_frame_table(void)
   {
     hash_init(&frame_table, ft_hash, ft_less, NULL);
     lock_init(&ft_lock);
+    printf("Actualmente pesa %lu\n\n", sizeof(struct frame));
     initialized = true;
   }
 }
@@ -69,6 +70,7 @@ ft_insert(void *frame)
   current =  malloc(sizeof(struct frame));
   current->owner = thread_current();
   current->address = frame;
+  current->uaddr = NULL;
 
   lock_ft();
 

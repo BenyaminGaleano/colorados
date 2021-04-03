@@ -10,6 +10,7 @@ struct frame {
   struct list_elem elem;
   struct hash_elem helem;
   void *address;
+  void *uaddr;
   struct thread *owner;
 };
 

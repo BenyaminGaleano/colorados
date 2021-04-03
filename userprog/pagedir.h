@@ -15,4 +15,11 @@ bool pagedir_is_accessed (uint32_t *pd, const void *upage);
 void pagedir_set_accessed (uint32_t *pd, const void *upage, bool accessed);
 void pagedir_activate (uint32_t *pd);
 
+/** @colorados */
+bool pagedir_in_swap (uint32_t *pd, void *upage);
+void pagedir_set_swap (uint32_t *pd, void *upage, bool swap);
+bool pagedir_is_stack (uint32_t *pd, void *upage);
+void pagedir_set_stack (uint32_t *pd, void *upage, bool stack);
+/** @colorados */
+
 #endif /* userprog/pagedir.h */

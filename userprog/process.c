@@ -593,17 +593,16 @@ setup_stack (void **esp)
   bool success = false;
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-
-
-  if (kpage == NULL) {
-    kpage = palloc_get_page(0);
-  }
-  
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-      if (success)
+      
+      if (success) {
+#ifdef VM
+        pagedir_set_stack(thread_current()->pagedir, ((uint8_t *) PHYS_BASE) - PGSIZE, true);
+#endif
         *esp = PHYS_BASE;
+      }
       else
         palloc_free_page (kpage);
     }

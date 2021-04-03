@@ -6,6 +6,11 @@
 #include "threads/pte.h"
 #include "threads/palloc.h"
 
+#ifdef VM
+#include "vm/frame.h"
+#endif
+
+
 static uint32_t *active_pd (void);
 static void invalidate_pagedir (uint32_t *);
 
@@ -112,6 +117,16 @@ pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable)
     {
       ASSERT ((*pte & PTE_P) == 0);
       *pte = pte_create_user (kpage, writable);
+
+/** @colorados */
+#ifdef VM
+      struct frame *f = frame_lookup(kpage);
+      if (f != NULL) {
+        f->uaddr = upage;
+      }
+#endif
+/** @colorados */
+
       return true;
     }
   else
@@ -261,3 +276,55 @@ invalidate_pagedir (uint32_t *pd)
       pagedir_activate (pd);
     } 
 }
+
+
+/** @colorados - CODE */
+
+bool
+pagedir_in_swap (uint32_t *pd, void *upage)
+{
+  uint32_t *pte = lookup_page (pd, upage, false);
+  return pte != NULL && (*pte & PTE_SWAP) != 0;
+}
+
+
+void
+pagedir_set_swap (uint32_t *pd, void *upage, bool swap)
+{
+  uint32_t *pte = lookup_page (pd, upage, false);
+  if (pte != NULL) 
+    {
+      if (swap)
+        *pte |= PTE_SWAP;
+      else 
+        *pte &= ~(uint32_t) PTE_SWAP;
+
+      // need synchronization with TLB
+      invalidate_pagedir (pd);
+    }
+}
+
+bool
+pagedir_is_stack (uint32_t *pd, void *upage)
+{
+  uint32_t *pte = lookup_page (pd, upage, false);
+  return pte != NULL && (*pte & PTE_STACK) != 0;
+}
+
+
+void
+pagedir_set_stack (uint32_t *pd, void *upage, bool swap)
+{
+  uint32_t *pte = lookup_page (pd, upage, false);
+  if (pte != NULL) 
+    {
+      if (swap)
+        *pte |= PTE_STACK;
+      else 
+        *pte &= ~(uint32_t) PTE_STACK;
+
+      // need synchronization with TLB
+      invalidate_pagedir (pd);
+    }
+}
+
