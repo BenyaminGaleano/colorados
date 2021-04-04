@@ -328,3 +328,17 @@ pagedir_set_stack (uint32_t *pd, void *upage, bool swap)
     }
 }
 
+bool
+pagedir_is_present (uint32_t *pd, void *upage)
+{
+  uint32_t *pte = lookup_page (pd, upage, false);
+  return pte != NULL && (*pte & PTE_P) != 0;
+}
+
+
+bool
+pagedir_writes_access (uint32_t *pd, void *upage)
+{
+  uint32_t *pte = lookup_page (pd, upage, false);
+  return pte != NULL && (*pte & PTE_W) != 0;
+}

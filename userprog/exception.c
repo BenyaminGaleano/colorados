@@ -181,6 +181,14 @@ page_fault (struct intr_frame *f)
   /** @colorados */
 
 #ifdef VM
+  struct thread *t = thread_current();
+
+  if (fault_addr < PHYS_BASE &&
+      !pagedir_is_present(t->pagedir, fault_addr) &&
+      pagedir_in_swap(t->pagedir, fault_addr))
+  {
+    
+  } 
   /* printf("stack %p dir %p\n\n", f->esp, fault_addr); */
   if (
       fault_addr > (((uint8_t *) PHYS_BASE) - MAX_STACK) &&

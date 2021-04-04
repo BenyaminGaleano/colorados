@@ -20,6 +20,8 @@ bool pagedir_in_swap (uint32_t *pd, void *upage);
 void pagedir_set_swap (uint32_t *pd, void *upage, bool swap);
 bool pagedir_is_stack (uint32_t *pd, void *upage);
 void pagedir_set_stack (uint32_t *pd, void *upage, bool stack);
+bool pagedir_is_present (uint32_t *pd, void *upage);
+bool pagedir_writes_access (uint32_t *pd, void *upage);
 /** @colorados */
 
 #endif /* userprog/pagedir.h */
