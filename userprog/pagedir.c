@@ -342,3 +342,25 @@ pagedir_writes_access (uint32_t *pd, void *upage)
   uint32_t *pte = lookup_page (pd, upage, false);
   return pte != NULL && (*pte & PTE_W) != 0;
 }
+
+// Reinstall the page that must be previously
+// present and must be not present currently
+bool
+pagedir_reinstall (uint32_t *pd, void *upage, void *kpage)
+{
+  uint32_t *pte = lookup_page (pd, upage, false);
+
+  ASSERT(!pagedir_is_present(pd, upage));
+  ASSERT(pte != NULL);
+
+  bool stack = pagedir_is_stack(pd, upage);
+  bool swap = pagedir_in_swap(pd, upage);
+  bool write = pagedir_writes_access(pd, upage);
+
+  bool response = pagedir_set_page(pd, upage, kpage, write);
+
+  pagedir_set_swap(pd, upage, swap);
+  pagedir_set_stack(pd, upage, swap);
+
+  return response;
+}

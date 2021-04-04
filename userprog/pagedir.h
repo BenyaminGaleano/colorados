@@ -22,6 +22,7 @@ bool pagedir_is_stack (uint32_t *pd, void *upage);
 void pagedir_set_stack (uint32_t *pd, void *upage, bool stack);
 bool pagedir_is_present (uint32_t *pd, void *upage);
 bool pagedir_writes_access (uint32_t *pd, void *upage);
+bool padedir_reinstall (uint32_t *pd, void *upage, void *kpage);
 /** @colorados */
 
 #endif /* userprog/pagedir.h */
