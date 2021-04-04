@@ -305,23 +305,23 @@ pagedir_set_swap (uint32_t *pd, void *upage, bool swap)
 }
 
 bool
-pagedir_is_stack (uint32_t *pd, void *upage)
+pagedir_is_exe (uint32_t *pd, void *upage)
 {
   uint32_t *pte = lookup_page (pd, upage, false);
-  return pte != NULL && (*pte & PTE_STACK) != 0;
+  return pte != NULL && (*pte & PTE_EXE) != 0;
 }
 
 
 void
-pagedir_set_stack (uint32_t *pd, void *upage, bool swap)
+pagedir_set_stack (uint32_t *pd, void *upage, bool exe)
 {
   uint32_t *pte = lookup_page (pd, upage, false);
   if (pte != NULL) 
     {
-      if (swap)
-        *pte |= PTE_STACK;
+      if (exe)
+        *pte |= PTE_EXE;
       else 
-        *pte &= ~(uint32_t) PTE_STACK;
+        *pte &= ~(uint32_t) PTE_EXE;
 
       // need synchronization with TLB
       invalidate_pagedir (pd);
@@ -335,6 +335,25 @@ pagedir_is_present (uint32_t *pd, void *upage)
   return pte != NULL && (*pte & PTE_P) != 0;
 }
 
+bool
+pagedir_zeroed (uint32_t *pd, void *upage)
+{
+  uint32_t *pte = lookup_page (pd, upage, false);;
+  return pte != NULL && (*pte & PTE_EXE) != 0;
+}
+
+void
+pagedir_set_zeroed (uint32_t *pd, void *upage, bool zeroed)
+{
+  uint32_t *pte = lookup_page (pd, upage, false);
+  if (pte != NULL)
+  {
+    if (zeroed)
+      *pte |= PTE_ZEROED;
+    else
+      *pte &= ~(uint32_t) PTE_ZEROED;
+  }
+}
 
 bool
 pagedir_writes_access (uint32_t *pd, void *upage)
@@ -352,8 +371,12 @@ pagedir_reinstall (uint32_t *pd, void *upage, void *kpage)
 
   ASSERT(!pagedir_is_present(pd, upage));
   ASSERT(pte != NULL);
+  ASSERT(pg_ofs (upage) == 0);
+  ASSERT(pg_ofs (kpage) == 0);
 
   bool stack = pagedir_is_stack(pd, upage);
+  bool exe = pagedir_is exe(pd, upage);
+  bool zeored = pagedir_zeroed(pd, upage);
   bool swap = pagedir_in_swap(pd, upage);
   bool write = pagedir_writes_access(pd, upage);
 
@@ -361,6 +384,8 @@ pagedir_reinstall (uint32_t *pd, void *upage, void *kpage)
 
   pagedir_set_swap(pd, upage, swap);
   pagedir_set_stack(pd, upage, swap);
+  pagedir_set_exe(pd, upage, exe);
+  pagedir_set_zeroed(pd, upage, zeored);
 
   return response;
 }

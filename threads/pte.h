@@ -69,7 +69,8 @@ static inline uintptr_t pd_no (const void *va) {
 
 /** @colorados */
 #define PTE_SWAP   0x00000200    /* 1=in swap file, 0=not in swap. */
-#define PTE_STACK   0x00000400    /* 1=is stack page, 0=is a normal page. */
+#define PTE_ZEROED 0x00000400    /* 1=fill with zeros, o=need read from exe. */
+#define PTE_EXE    0x00000800    /* 1=part of executable, 0=is normal. */
 /** @colorados */
 
 

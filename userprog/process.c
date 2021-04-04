@@ -598,9 +598,6 @@ setup_stack (void **esp)
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       
       if (success) {
-#ifdef VM
-        pagedir_set_stack(thread_current()->pagedir, ((uint8_t *) PHYS_BASE) - PGSIZE, true);
-#endif
         *esp = PHYS_BASE;
       }
       else

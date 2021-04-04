@@ -187,7 +187,7 @@ page_fault (struct intr_frame *f)
       !pagedir_is_present(t->pagedir, fault_addr) &&
       pagedir_in_swap(t->pagedir, fault_addr))
   {
-    
+
   } 
   /* printf("stack %p dir %p\n\n", f->esp, fault_addr); */
   if (
@@ -199,7 +199,6 @@ page_fault (struct intr_frame *f)
     void *npagestk = palloc_get_page(PAL_USER | PAL_ZERO);
 
     ASSERT(install_page(pg_round_down(fault_addr), npagestk, true));
-    pagedir_set_stack(thread_current()->pagedir, pg_round_down(fault_addr), true);
 
     return;
   }

@@ -18,8 +18,10 @@ void pagedir_activate (uint32_t *pd);
 /** @colorados */
 bool pagedir_in_swap (uint32_t *pd, void *upage);
 void pagedir_set_swap (uint32_t *pd, void *upage, bool swap);
-bool pagedir_is_stack (uint32_t *pd, void *upage);
-void pagedir_set_stack (uint32_t *pd, void *upage, bool stack);
+bool pagedir_zeored (uint32_t *pd, void *upage);
+void pagedir_set_zeroed (uint32_t *pd, void *upage, bool zeroed);
+bool pagedir_is_exe (uint32_t *pd, void *upage);
+void pagedir_set_exe (uint32_t *pd, void *upage, bool exe);
 bool pagedir_is_present (uint32_t *pd, void *upage);
 bool pagedir_writes_access (uint32_t *pd, void *upage);
 bool padedir_reinstall (uint32_t *pd, void *upage, void *kpage);
