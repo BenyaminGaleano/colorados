@@ -339,7 +339,7 @@ bool
 pagedir_zeroed (uint32_t *pd, void *upage)
 {
   uint32_t *pte = lookup_page (pd, upage, false);;
-  return pte != NULL && (*pte & PTE_EXE) != 0;
+  return pte != NULL && (*pte & PTE_ZEROED) != 0;
 }
 
 void

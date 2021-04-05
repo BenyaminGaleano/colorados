@@ -138,20 +138,20 @@ syscall_handler (struct intr_frame *f)
     lock_release(&filesys_lock);
     break;
   case SYS_SEEK:
-    lock_acquire(&filesys_lock);
     checkbytes(st, 12);
+    lock_acquire(&filesys_lock);
     seek(stkcast(st + 4, int), stkcast(st + 8, unsigned));
     lock_release(&filesys_lock);
     break;
   case SYS_TELL:
-    lock_acquire(&filesys_lock);
     checkbytes(st, 8);
+    lock_acquire(&filesys_lock);
     f->eax = tell(stkcast(st + 4, int));
     lock_release(&filesys_lock);
     break;
   case SYS_CLOSE:
-    lock_acquire(&filesys_lock);
     checkbytes(st, 8);
+    lock_acquire(&filesys_lock);
     close(stkcast(st + 4, int));
     lock_release(&filesys_lock);
     break;

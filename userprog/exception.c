@@ -10,6 +10,12 @@
 #include "threads/palloc.h"
 #include "userprog/pagedir.h"
 
+#ifdef VM
+#include "filesys/file.h"
+#include "vm/est.h"
+#include "userprog/syscall.h"
+#endif
+
 /** @colorados */
 #define MAX_STACK 0x00800000
 
@@ -137,6 +143,24 @@ check_stack_access(void *esp, void *fault_addr, bool user)
   return user ? esp - 32 <= fault_addr : thread_current()->st_kernel_save - 32 <= fault_addr;
 }
 
+#ifdef VM
+static struct exe_segment *find_segment(struct thread *t, void *fault_addr) 
+{
+  struct list_elem *i = list_begin(&t->est);
+  struct exe_segment *s = NULL;
+
+  while (i != list_end(&t->est)) {
+    s = list_entry(i, struct exe_segment, elem);
+    if (fault_addr >= s->start && fault_addr < s->end)
+      break;
+    i = list_next(i);
+    s = NULL;
+  }
+
+  return s;
+}
+#endif
+
 
 /* Page fault handler.  This is a skeleton that must be filled in
    to implement virtual memory.  Some solutions to project 2 may
@@ -182,23 +206,41 @@ page_fault (struct intr_frame *f)
 
 #ifdef VM
   struct thread *t = thread_current();
-
-  if (fault_addr < PHYS_BASE &&
-      !pagedir_is_present(t->pagedir, fault_addr) &&
-      pagedir_in_swap(t->pagedir, fault_addr))
+  void *kpage;
+  if (fault_addr >= PHYS_BASE || pagedir_is_present(t->pagedir, fault_addr)) 
   {
+    goto next;
+  }
 
-  } 
-  /* printf("stack %p dir %p\n\n", f->esp, fault_addr); */
-  if (
-      fault_addr > (((uint8_t *) PHYS_BASE) - MAX_STACK) &&
-      fault_addr < PHYS_BASE &&
+  if (pagedir_in_swap(t->pagedir, fault_addr))
+  {
+    return;
+  }
+
+    // PAGING EXECUTABLE
+  if (pagedir_is_exe(t->pagedir, fault_addr)) {
+    struct exe_segment *s = find_segment(t, fault_addr);
+
+    kpage = palloc_get_page(PAL_USER | PAL_ZERO);
+
+    if (!pagedir_zeroed(t->pagedir, fault_addr)) {
+      fsys_lock();
+      file_seek(t->exec_file, est_offset(s, fault_addr));
+      file_read(t->exec_file, kpage, est_read_bytes(s, fault_addr));
+      fsys_unlock();
+    }
+
+    ASSERT(pagedir_reinstall(t->pagedir, pg_round_down(fault_addr), kpage));
+    return;
+  }
+
+  // STACK GROW
+  if (fault_addr > (((uint8_t *) PHYS_BASE) - MAX_STACK) &&
       check_stack_access(f->esp, fault_addr, user)) {
 
-    /* printf("Limites %p %p\n\n", (((uint8_t *) PHYS_BASE) - MAX_STACK), PHYS_BASE); */
-    void *npagestk = palloc_get_page(PAL_USER | PAL_ZERO);
+    kpage = palloc_get_page(PAL_USER | PAL_ZERO);
 
-    ASSERT(install_page(pg_round_down(fault_addr), npagestk, true));
+    ASSERT(install_page(pg_round_down(fault_addr), kpage, true));
 
     return;
   }

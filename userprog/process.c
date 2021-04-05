@@ -571,6 +571,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
     while (read_bytes > 0 || zero_bytes > 0)
     {
+      segment->end = upage + PGSIZE;
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
@@ -581,10 +582,12 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       
       pagedir_set_exe(t->pagedir, upage, true);
 
-      if(read_bytes != 0)
+      if(page_read_bytes == 0)
       {
-        pagedir_set_zeroed(t->pagedir, upage, false);
+        pagedir_set_zeroed(t->pagedir, upage, true);
       }
+
+      pagedir_clear_page(t->pagedir, upage);
 
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
@@ -594,7 +597,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
     
   #endif
 
-  #ifdef USERPROG
+  #ifdef VM
   file_seek (file, ofs);
   while (read_bytes > 0 || zero_bytes > 0) 
     {
