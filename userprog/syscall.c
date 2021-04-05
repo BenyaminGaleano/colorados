@@ -183,7 +183,13 @@ int stdin_and_check(int fd, void *buffer, unsigned length)
   if (buffer == NULL || buffer > PHYS_BASE) {
     exit(-1);
   }
-
+  for (unsigned int i = 0; i < length; i++)
+  {
+    if(get_user(buffer+1)==-1||put_user(buffer+1,0)==false){
+      exit(-1);
+    }
+  }
+  
   if (fd == 0) {
     for (unsigned int i = 0; i < length; i++) {
       if (put_user(buffer + i, input_getc()) == false) {
@@ -197,11 +203,7 @@ int stdin_and_check(int fd, void *buffer, unsigned length)
     return 0;
   }
 
-  for (unsigned int i = 0; i < length; i++) {
-    if (put_user(buffer + i, 0) == false) {
-      exit(-1);
-    }
-  }
+
   return -1;
 }
 

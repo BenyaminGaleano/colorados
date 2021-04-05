@@ -395,12 +395,17 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
+  fsys_lock();
   file = filesys_open (file_name);
-
+  fsys_unlock();
   if (file == NULL) {
     printf("load: %s: open failed\n", file_name);
     goto done;
   }
+  fsys_lock();
+  file_deny_write(file);
+  fsys_unlock();
+  t->exec_file=file;
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -482,8 +487,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   *eip = (void (*) (void)) ehdr.e_entry;
 
   success = true;
-  file_deny_write(file);
-  t->exec_file = file;
  done:
   /* We arrive here whether the load is successful or not. */
   return success;
@@ -579,15 +582,13 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       {
         return false;
       }
-      
+      pagedir_clear_page(t->pagedir,upage);
       pagedir_set_exe(t->pagedir, upage, true);
 
       if(page_read_bytes == 0)
       {
         pagedir_set_zeroed(t->pagedir, upage, true);
       }
-
-      pagedir_clear_page(t->pagedir, upage);
 
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
