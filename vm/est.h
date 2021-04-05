@@ -1,7 +1,7 @@
-#ifdef  __EST_H__
+#ifndef  __EST_H__
 #define __EST_H__
 #include <list.h>
-#include <studio.h>
+#include <stdio.h>
 #include <debug.h>
 #include "threads/pte.h"
 #include "threads/vaddr.h"

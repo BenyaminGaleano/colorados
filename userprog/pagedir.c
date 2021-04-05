@@ -313,7 +313,7 @@ pagedir_is_exe (uint32_t *pd, void *upage)
 
 
 void
-pagedir_set_stack (uint32_t *pd, void *upage, bool exe)
+pagedir_set_exe (uint32_t *pd, void *upage, bool exe)
 {
   uint32_t *pte = lookup_page (pd, upage, false);
   if (pte != NULL) 
@@ -374,8 +374,8 @@ pagedir_reinstall (uint32_t *pd, void *upage, void *kpage)
   ASSERT(pg_ofs (upage) == 0);
   ASSERT(pg_ofs (kpage) == 0);
 
-  bool stack = pagedir_is_stack(pd, upage);
-  bool exe = pagedir_is exe(pd, upage);
+  //bool stack = pagedir_is_stack(pd, upage);
+  bool exe = pagedir_is_exe(pd, upage);
   bool zeored = pagedir_zeroed(pd, upage);
   bool swap = pagedir_in_swap(pd, upage);
   bool write = pagedir_writes_access(pd, upage);
@@ -383,7 +383,7 @@ pagedir_reinstall (uint32_t *pd, void *upage, void *kpage)
   bool response = pagedir_set_page(pd, upage, kpage, write);
 
   pagedir_set_swap(pd, upage, swap);
-  pagedir_set_stack(pd, upage, swap);
+  //pagedir_set_stack(pd, upage, swap);
   pagedir_set_exe(pd, upage, exe);
   pagedir_set_zeroed(pd, upage, zeored);
 

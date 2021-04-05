@@ -264,7 +264,7 @@ process_exit (void)
    }
 
   #ifdef VM
-    while (!list_empty(&cur->est))
+    while (!list_empty(&cur->est)) 
     {
       free(list_entry(list_pop_front(&cur->est), struct exe_segment, elem));
     }
@@ -561,8 +561,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT (ofs % PGSIZE == 0);
 
   #ifdef VM
-    struct thread * t = thread_current();
-    struct exe_segment * segment = malloc(sizeof(struct exe_segment));
+    struct thread *t = thread_current();
+    struct exe_segment *segment = malloc(sizeof(struct exe_segment));
     segment->offset = ofs;
     segment->start = upage;
     segment->read_bytes = read_bytes;
