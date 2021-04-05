@@ -115,6 +115,7 @@ struct thread
     /* VM */
     struct list frames;
     struct list pages_swap;
+    struct list est;
     void *st_kernel_save;
 
     /* OS */

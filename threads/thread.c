@@ -767,6 +767,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->exit_state = -1;
   /* VM */
   list_init(&t->frames);
+  list_init(&t->pages_swap);
+  list_init(&t->est);
   /* VM - end */
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
