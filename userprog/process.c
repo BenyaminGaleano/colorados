@@ -22,6 +22,11 @@
 #include "userprog/exception.h"
 #include "threads/synch.h"
 #include "userprog/syscall.h"
+
+#ifdef VM
+#include "vm/est.h"
+#endif
+
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
@@ -257,6 +262,14 @@ process_exit (void)
       }
     }
    }
+
+  #ifdef VM
+    while (!list_empty(&cur->est))
+    {
+      free(list_entry(list_pop_front(&cur->est), struct exe_segment, elem));
+    }
+  #endif
+
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -547,6 +560,41 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
 
+  #ifdef VM
+    struct thread * t = thread_current();
+    struct exe_segment * segment = malloc(sizeof(struct exe_segment));
+    segment->offset = ofs;
+    segment->start = upage;
+    segment->read_bytes = read_bytes;
+
+    list_push_back(&t->est, &segment->elem);
+
+    while (read_bytes > 0 || zero_bytes > 0)
+    {
+      size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+      size_t page_zero_bytes = PGSIZE - page_read_bytes;
+
+      if (!install_page(upage, PHYS_BASE, writable))
+      {
+        return false;
+      }
+      
+      pagedir_set_exe(t->pagedir, upage, true);
+
+      if(read_bytes != 0)
+      {
+        pagedir_set_zeroed(t->pagedir, upage, false);
+      }
+
+      read_bytes -= page_read_bytes;
+      zero_bytes -= page_zero_bytes;
+      upage += PGSIZE;
+      segment->end = upage;
+    }
+    
+  #endif
+
+  #ifdef USERPROG
   file_seek (file, ofs);
   while (read_bytes > 0 || zero_bytes > 0) 
     {
@@ -581,6 +629,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
     }
+  #endif
   return true;
 }
 
