@@ -1,8 +1,10 @@
 #include "vm/frame.h"
 #include "threads/synch.h"
 #include "threads/malloc.h"
+#include "threads/vaddr.h"
 
 struct hash frame_table;
+struct list lru;
 struct lock ft_lock;
 bool initialized = false;
 
@@ -55,6 +57,7 @@ init_frame_table(void)
   {
     hash_init(&frame_table, ft_hash, ft_less, NULL);
     lock_init(&ft_lock);
+    list_init(&lru);
     printf("Actualmente pesa %lu\n\n", sizeof(struct frame));
     initialized = true;
   }
@@ -78,6 +81,7 @@ ft_insert(void *frame)
 
   if (curr == NULL) {
     list_push_back(&current->owner->frames, &current->elem);
+    list_push_back(&lru, &current->elru);
     current = NULL;
   } else {
     free(current);
@@ -117,6 +121,8 @@ ft_remove(void *frame)
 struct frame *
 frame_lookup (void *address)
 {
+  ASSERT(pg_ofs(address) == 0)
+
   struct frame f;
   struct hash_elem *e;
 
@@ -161,4 +167,61 @@ ft_update(void *frame_addr)
 }
 
 
+struct frame *
+frame_lookup_user (void *uaddr)
+{
+  ASSERT(pg_ofs(uaddr) == 0)
+  struct frame *f;
+  struct thread *t = thread_current(); 
+
+  f = frame_lookup(pagedir_get_page(t->pagedir, uaddr));
+
+  return f;
+}
+
+
+bool
+ft_access (void *uaddr)
+{
+  return ft_access_multiple(uaddr, 1);
+}
+
+bool
+ft_access_multiple(void *uaddr, void *uaddr_end)
+{
+  ASSERT(uaddr_end >= uaddr)
+  struct frame *f;
+  bool success = true;
+  
+  uaddr = pg_round_down(uaddr);
+  uaddr_end = pg_round_down(uaddr_end) + PGSIZE;
+
+  while (uaddr != uaddr_end + PGSIZE)
+  {
+    f = frame_lookup_user(uaddr);
+
+    if (f == NULL)
+    {
+      success = false;
+      break;
+    }
+
+    lock_ft();
+    lru_access(f);
+    unlock_ft();
+
+    uaddr += PGSIZE;
+  }
+
+  return success;
+}
+
+
+void
+lru_access(struct frame *f)
+{
+  ASSERT(f != NULL)
+  list_remove(&f->elru);
+  list_push_back(&lru, &f->elru);
+}
 
