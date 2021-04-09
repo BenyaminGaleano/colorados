@@ -114,6 +114,9 @@ ft_remove(void *frame)
   if (curr != NULL) {
     fte = fte_hvalue(curr);
     list_remove(&fte->elem);
+    if (fte->inclock) {
+      list_remove(&fte->eclock);
+    }
   }
 
   unlock_ft();
