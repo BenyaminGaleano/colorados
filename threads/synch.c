@@ -226,7 +226,9 @@ lock_acquire (struct lock *lock)
   sema_down (&lock->semaphore);
   lock->holder = thread_current ();
   lock->holder->locked_me = NULL;
+  enum intr_level old_level = intr_disable();
   list_push_back(&(lock->holder->locks), &lock->elem);
+  intr_set_level(old_level);
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -262,7 +264,9 @@ lock_release (struct lock *lock)
 
   lock->holder->priority = lock->holder->real_priority;
   lock->holder = NULL;
+  enum intr_level old_level = intr_disable();
   list_remove(&lock->elem);
+  intr_set_level(old_level);
   sema_up (&lock->semaphore);
 }
 
