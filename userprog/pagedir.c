@@ -123,6 +123,7 @@ pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable)
       struct frame *f = frame_lookup(kpage);
       if (f != NULL) {
         f->uaddr = upage;
+        clock_add(f);
       }
 #endif
 /** @colorados */
@@ -318,6 +319,7 @@ pagedir_set_exe (uint32_t *pd, void *upage, bool exe)
   uint32_t *pte = lookup_page (pd, upage, false);
   if (pte != NULL) 
     {
+      ASSERT(!(*pte & PTE_ZEROED))
       if (exe)
         *pte |= PTE_EXE;
       else 
@@ -348,6 +350,7 @@ pagedir_set_zeroed (uint32_t *pd, void *upage, bool zeroed)
   uint32_t *pte = lookup_page (pd, upage, false);
   if (pte != NULL)
   {
+    ASSERT(*pte & PTE_EXE);
     if (zeroed)
       *pte |= PTE_ZEROED;
     else
@@ -361,6 +364,33 @@ pagedir_writes_access (uint32_t *pd, void *upage)
   uint32_t *pte = lookup_page (pd, upage, false);
   return pte != NULL && (*pte & PTE_W) != 0;
 }
+
+
+bool
+pagedir_is_mmap (uint32_t *pd, void *upage)
+{
+  uint32_t *pte = lookup_page (pd, upage, false);
+  return pte != NULL && (*pte & PTE_EXE) == 0 && (*pte & PTE_ZEROED) != 0;
+}
+
+
+void
+pagedir_set_mmap (uint32_t *pd, void *upage, bool mmap)
+{
+  uint32_t *pte = lookup_page (pd, upage, false);
+  if (pte != NULL) 
+    {
+      ASSERT(!(*pte & PTE_EXE));
+      if (mmap)
+        *pte |= PTE_ZEROED;
+      else 
+        *pte &= ~(uint32_t) PTE_ZEROED;
+
+      // need synchronization with TLB
+      invalidate_pagedir (pd);
+    }
+}
+
 
 // Reinstall the page that must be previously
 // present and must be not present currently

@@ -103,9 +103,16 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
     }
 
 #ifdef VM
-  if (flags & PAL_USER && pages != NULL) {
-    for (unsigned i = 0; i < page_cnt; i++) {
-      ASSERT(ft_insert(pages + i*PGSIZE) == NULL);
+  struct frame *f;
+  if (flags & PAL_USER) {
+    if (pages != NULL) {
+      for (unsigned i = 0; i < page_cnt; i++) {
+        ASSERT(ft_insert(pages + i*PGSIZE) == NULL);
+      }
+    } else if (page_cnt == 1) {
+      f = clock_replace();
+      ASSERT(f != NULL);
+      pages = f->address;
     }
   }
 #endif

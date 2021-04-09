@@ -9,9 +9,10 @@
 struct frame {
   struct list_elem elem;
   struct hash_elem helem;
-  struct list_elem elru;
+  struct list_elem eclock;
   void *address;
   void *uaddr;
+  bool inclock;
   struct thread *owner;
 };
 
@@ -32,7 +33,8 @@ struct frame *fte_lvalue(const struct list_elem *elem);
 bool ft_access(void *uaddr);
 bool ft_access_multiple(void *uaddr, void *uaddr_end);
 
-void lru_access(struct frame *f);
+void clock_add(struct frame *f);
+struct frame *clock_replace(void);
 
 #endif
 

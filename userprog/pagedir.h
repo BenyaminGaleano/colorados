@@ -25,6 +25,8 @@ void pagedir_set_exe (uint32_t *pd, void *upage, bool exe);
 bool pagedir_is_present (uint32_t *pd, void *upage);
 bool pagedir_writes_access (uint32_t *pd, void *upage);
 bool padedir_reinstall (uint32_t *pd, void *upage, void *kpage);
+bool pagedir_is_mmap (uint32_t *pd, void *upage);
+void pagedir_set_mmap (uint32_t *pd, void *upage, bool mmap);
 /** @colorados */
 
 #endif /* userprog/pagedir.h */

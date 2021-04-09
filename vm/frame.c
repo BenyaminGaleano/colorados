@@ -2,9 +2,12 @@
 #include "threads/synch.h"
 #include "threads/malloc.h"
 #include "threads/vaddr.h"
+#include "userprog/pagedir.h"
+#include <string.h>
 
 struct hash frame_table;
-struct list lru;
+struct list clock;
+struct list_elem *hand;
 struct lock ft_lock;
 bool initialized = false;
 
@@ -13,6 +16,7 @@ bool initialized = false;
 
 unsigned ft_hash (const struct hash_elem *, void *aux);
 bool ft_less (const struct hash_elem *, const struct hash_elem *, void *);
+struct frame *_frame_chg_owner(struct frame *f);
 
 
 struct frame *
@@ -57,8 +61,8 @@ init_frame_table(void)
   {
     hash_init(&frame_table, ft_hash, ft_less, NULL);
     lock_init(&ft_lock);
-    list_init(&lru);
-    printf("Actualmente pesa %lu\n\n", sizeof(struct frame));
+    list_init(&clock);
+    printf("Actualmente pesa %u\n\n", sizeof(struct frame));
     initialized = true;
   }
 }
@@ -74,6 +78,7 @@ ft_insert(void *frame)
   current->owner = thread_current();
   current->address = frame;
   current->uaddr = NULL;
+  current->inclock = false;
 
   lock_ft();
 
@@ -81,7 +86,6 @@ ft_insert(void *frame)
 
   if (curr == NULL) {
     list_push_back(&current->owner->frames, &current->elem);
-    list_push_back(&lru, &current->elru);
     current = NULL;
   } else {
     free(current);
@@ -133,17 +137,26 @@ frame_lookup (void *address)
 
 
 struct frame *
-frame_change_owner(struct frame* frame)
+_frame_chg_owner(struct frame *frame)
 {
   if (frame == NULL) {
     return NULL;
   }
 
-  lock_ft();
-
   list_remove(&frame->elem);
   frame->owner = thread_current();
   list_push_back(&frame->owner->frames, &frame->elem);
+
+  return frame;
+}
+
+
+struct frame *
+frame_change_owner(struct frame *frame)
+{
+  lock_ft();
+
+  frame = _frame_chg_owner(frame);
 
   unlock_ft();
 
@@ -180,48 +193,66 @@ frame_lookup_user (void *uaddr)
 }
 
 
-bool
-ft_access (void *uaddr)
-{
-  return ft_access_multiple(uaddr, 1);
-}
-
-bool
-ft_access_multiple(void *uaddr, void *uaddr_end)
-{
-  ASSERT(uaddr_end >= uaddr)
-  struct frame *f;
-  bool success = true;
-  
-  uaddr = pg_round_down(uaddr);
-  uaddr_end = pg_round_down(uaddr_end) + PGSIZE;
-
-  while (uaddr != uaddr_end + PGSIZE)
-  {
-    f = frame_lookup_user(uaddr);
-
-    if (f == NULL)
-    {
-      success = false;
-      break;
-    }
-
-    lock_ft();
-    lru_access(f);
-    unlock_ft();
-
-    uaddr += PGSIZE;
-  }
-
-  return success;
-}
-
-
 void
-lru_access(struct frame *f)
+clock_add(struct frame *f)
 {
   ASSERT(f != NULL)
-  list_remove(&f->elru);
-  list_push_back(&lru, &f->elru);
+  if (!f->inclock)
+  {
+    list_push_back(&clock, &f->eclock);
+    hand = list_begin(&clock);
+  }
+
+  f->inclock = true;
+}
+
+
+struct frame *
+clock_replace(void)
+{
+  ASSERT(list_size(&clock) > 0)
+  struct frame *f;
+
+  PANIC("Need a swap and mmap implementation");
+
+  lock_ft();
+  while (true) {
+    if (hand == list_end(&clock)) {
+      hand = list_begin(&clock);
+      continue;
+    }
+
+    f = list_entry(hand, struct frame, eclock);
+    hand = list_next(hand);
+
+    ASSERT(f != NULL && f->owner != NULL);
+
+    if (pagedir_is_accessed(f->owner->pagedir, f->uaddr))
+    {
+      pagedir_set_accessed(f->owner->pagedir, f->uaddr, false);
+    } else
+      break;
+  }
+
+  bool exe = pagedir_is_exe(f->owner->pagedir, f->uaddr);
+  bool dirty = pagedir_is_dirty(f->owner->pagedir, f->uaddr);
+  bool mmap = pagedir_is_mmap(f->owner->pagedir, f->uaddr);
+
+  // special case when is a executable page
+  if ((!exe && !mmap) || (exe && dirty))
+  {
+    // TODO: store in swap
+    pagedir_set_swap(f->owner->pagedir, f->uaddr, true);
+  } else if (mmap && dirty)
+  {
+    // TODO: store in file
+  }
+
+  pagedir_clear_page(f->owner->pagedir, f->uaddr);
+  _frame_chg_owner(f);
+  memset(f->address, 0, PGSIZE);
+  unlock_ft();
+
+  return f;
 }
 
