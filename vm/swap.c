@@ -68,3 +68,72 @@ init_swap_table(void)
     }
 }
 
+struct swap *
+swap_lookup(block_sector_t sector)
+{
+    ASSERT(sector % 8 == 0);
+    
+    struct swap s;
+    struct hash_elem *e;
+
+    s.sector = sector;
+    e = hash_find(&swap_table, &s.helem);
+    return e != NULL ? swe_hvalue(e) : NULL;
+}
+
+struct swap *
+swap_lookup_user(struct thread *t, void *uaddr)
+{
+    struct list_elem *i = list_begin(&t->swps);
+    struct swap *s;
+
+    while (i != list_end(&t->swps))
+    {
+        s = swe_lvalue(i);
+
+        if(s->uaddr == uaddr)
+            return s;
+        
+        i = list_next(i);
+    }
+    
+    return NULL;
+}
+
+void
+sw_logout(void)
+{
+    struct thread *t = thread_current();
+    struct swap *s;
+
+    lock_sw();
+    while(list_size(&t->swps) > 0)
+    {
+        s = swe_lvalue(list_pop_back(&t->swps));
+        ASSERT(hash_delete(&swap_table, &s->helem) != NULL);
+        free(s);
+    }
+
+    unlock_sw();
+}
+
+block_sector_t
+swap_get_slot(void)
+{
+    block_sector_t piv = gsector;
+    while (swap_lookup(gsector) != NULL)
+    {
+        gsector += 8;
+
+        if(piv == gsector){
+            PANIC("Swap is full");
+        }
+
+        if(gsector == block_size(sw_device))
+        {
+            gsector = 0;
+        }
+    }
+    
+    return gsector;
+}
