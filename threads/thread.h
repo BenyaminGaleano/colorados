@@ -113,8 +113,6 @@ struct thread
     void *childsexit;
     
     /* VM */
-    struct list frames;
-    struct list pages_swap;
     struct list swps;                    /* swap pages */
     struct list est;
     void *st_kernel_save;

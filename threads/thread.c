@@ -248,6 +248,7 @@ void to_waiting_room(int64_t ticks)
 
 void propagate_priority(struct thread *t)
 {
+  #ifdef VM
   if(t->locked_me!=NULL)
   {
     if (t->priority > t->locked_me->holder->priority) {
@@ -255,6 +256,7 @@ void propagate_priority(struct thread *t)
       propagate_priority(t->locked_me->holder);
     }
   }
+  #endif
 }
 void sort_list_by_priority(void){
   list_sort(&ready_list,sort_list,NULL);
@@ -275,6 +277,7 @@ void get_max_thread_priority(struct thread *t){
   struct thread *max;
   struct list *waiters;
 
+  #ifdef VM
   while (iter!=list_end(&t->locks))
   {
     waiters = &list_entry(iter, struct lock, elem)->semaphore.waiters;
@@ -289,6 +292,7 @@ void get_max_thread_priority(struct thread *t){
 
     iter = list_next(iter);
   }
+  #endif
 }
 /* Starts preemptive thread scheduling by enabling interrupts.
    Also creates the idle thread. */
@@ -522,6 +526,13 @@ void
 thread_exit (void) 
 {
   ASSERT (!intr_context ());
+
+  struct lock *l;
+  struct thread *cur = thread_current();
+  while (!list_empty(&cur->locks)) {
+    l = list_entry(list_pop_front(&cur->locks), struct lock, elem);
+    lock_release(l);
+  }
 
 #ifdef USERPROG
   process_exit ();
@@ -766,8 +777,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->parent=NULL;
   t->exit_state = -1;
   /* VM */
-  list_init(&t->frames);
-  list_init(&t->pages_swap);
+  list_init(&t->swps);
   list_init(&t->est);
   /* VM - end */
   old_level = intr_disable ();

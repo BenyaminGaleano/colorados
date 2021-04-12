@@ -13,6 +13,7 @@
 #ifdef VM
 #include "filesys/file.h"
 #include "vm/est.h"
+#include "vm/swap.h"
 #include "userprog/syscall.h"
 #endif
 
@@ -214,6 +215,7 @@ page_fault (struct intr_frame *f)
 
   if (pagedir_in_swap(t->pagedir, fault_addr))
   {
+    sw_restore(t, pg_round_down(fault_addr));
     return;
   }
 

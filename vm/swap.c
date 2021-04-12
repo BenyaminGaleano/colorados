@@ -137,3 +137,69 @@ swap_get_slot(void)
     
     return gsector;
 }
+
+void
+sw_restore(struct thread *t, void *uaddr)
+{
+    struct swap *s;
+    void *kpage;
+
+    s = swap_lookup_user(t, uaddr);
+    ASSERT(s != NULL);
+
+    kpage = palloc_get_page(PAL_USER);
+
+    pagedir_reinstall(t->pagedir, uaddr, kpage);
+
+    lock_sw();
+    for (int i = 0; i < 8; i++) {
+        block_read(sw_device, s->sector + i, kpage + 512*i);
+    }
+    unlock_sw();
+}
+
+struct swap *
+sw_update (struct frame *f)
+{
+    ASSERT(f != NULL);
+    ASSERT(f->uaddr != NULL);
+    ASSERT(f->inclock);
+    ASSERT(f->owner != NULL);
+
+    struct swap *swe;
+    struct hash_elem *curr;
+    struct thread *t = f->owner;
+    void *uaddr = f->uaddr;
+
+    swe = swap_lookup_user(t, uaddr);
+
+    lock_sw();
+    if (swe != NULL)
+        goto update;
+
+    swe = malloc(sizeof(struct swap));
+    swe->owner = t;
+    swe->uaddr = uaddr;
+    swe->sector = swap_get_slot();
+
+    curr = hash_insert(&swap_table, &swe->helem);
+
+    if (curr == NULL) {
+        list_push_back(&swe->owner->swps, &swe->helem);
+        sw_write_frame(swe->sector, f);
+        swe = NULL;
+    } else {
+        free(swe);
+        swe = fte_hvalue(curr);
+    }
+
+    goto exit;
+
+update:
+    sw_write_frame(swe->sector, f);
+
+exit:
+    unlock_sw();
+
+    return swe;
+}

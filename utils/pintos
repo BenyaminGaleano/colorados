@@ -276,7 +276,7 @@ sub find_disks {
     set_disk ($name) if defined $name;
   }
   if (!exists $parts{SWAP}) {
-    my $name = find_file ('swap.dsk');
+     my $name = find_file ($ENV{"HOME"} . '/pintos/vm/build/swap.dsk');
     set_disk ($name) if defined $name;
   }
 

@@ -17,6 +17,8 @@ struct swap
 
 void init_swap_table(void);
 void sw_logout(void);
+void sw_restore(struct thread *t, void *uaddr);
+struct swap *sw_update(struct frame *f);
 struct swap *swe_hvalue(const struct hash_elem *elem);
 struct swap *swe_lvalue(const struct list_elem *elem);
 struct swap *swap_lookup(block_sector_t sector);

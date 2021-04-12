@@ -7,7 +7,6 @@
 #include "threads/malloc.h"
 
 struct frame {
-  struct list_elem elem;
   struct hash_elem helem;
   struct list_elem eclock;
   void *address;
@@ -28,7 +27,6 @@ struct frame *frame_lookup_user(void *uaddr);
 struct frame *frame_change_owner(struct frame *frame);
 
 struct frame *fte_hvalue(const struct hash_elem *elem);
-struct frame *fte_lvalue(const struct list_elem *elem);
 
 bool ft_access(void *uaddr);
 bool ft_access_multiple(void *uaddr, void *uaddr_end);

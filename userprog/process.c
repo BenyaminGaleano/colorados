@@ -25,6 +25,7 @@
 
 #ifdef VM
 #include "vm/est.h"
+#include "vm/swap.h"
 #endif
 
 static thread_func start_process NO_RETURN;
@@ -69,6 +70,10 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
+
+  #ifdef VM
+  init_swap_table();
+  #endif
 
   /** @colorados */
   char *token;
@@ -223,12 +228,6 @@ process_exit (void)
   pstate *ps = NULL;
   struct thread **t = cur->parent;
 
-  struct lock *l;
-  while (!list_empty(&cur->locks)) {
-    l = list_entry(list_pop_front(&cur->locks), struct lock, elem);
-    lock_release(l);
-  }
-
   fsys_lock();
   if (cur->exec_file != NULL)
   {
@@ -268,6 +267,8 @@ process_exit (void)
     {
       free(list_entry(list_pop_front(&cur->est), struct exe_segment, elem));
     }
+
+    sw_logout();
   #endif
 
   /* Destroy the current process's page directory and switch back

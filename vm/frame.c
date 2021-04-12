@@ -25,14 +25,6 @@ fte_hvalue(const struct hash_elem *elem)
   return elem == NULL ? NULL : hash_entry(elem, struct frame, helem);
 }
 
-
-struct frame *
-fte_lvalue(const struct list_elem *elem)
-{
-  return elem == NULL ? NULL : list_entry(elem, struct frame, elem);
-}
-
-
 unsigned
 ft_hash (const struct hash_elem *f_, void *aux UNUSED)
 {
@@ -85,7 +77,6 @@ ft_insert(void *frame)
   curr = hash_insert(&frame_table, &current->helem); 
 
   if (curr == NULL) {
-    list_push_back(&current->owner->frames, &current->elem);
     current = NULL;
   } else {
     free(current);
@@ -113,7 +104,6 @@ ft_remove(void *frame)
 
   if (curr != NULL) {
     fte = fte_hvalue(curr);
-    list_remove(&fte->elem);
     if (fte->inclock) {
       list_remove(&fte->eclock);
     }
@@ -146,9 +136,7 @@ _frame_chg_owner(struct frame *frame)
     return NULL;
   }
 
-  list_remove(&frame->elem);
   frame->owner = thread_current();
-  list_push_back(&frame->owner->frames, &frame->elem);
 
   return frame;
 }
@@ -216,8 +204,6 @@ clock_replace(void)
   ASSERT(list_size(&clock) > 0)
   struct frame *f;
 
-  PANIC("Need a swap and mmap implementation");
-
   lock_ft();
   while (true) {
     if (hand == list_end(&clock)) {
@@ -245,10 +231,12 @@ clock_replace(void)
   if ((!exe && !mmap) || (exe && dirty))
   {
     // TODO: store in swap
+    sw_update(f);
     pagedir_set_swap(f->owner->pagedir, f->uaddr, true);
   } else if (mmap && dirty)
   {
     // TODO: store in file
+    PANIC("Need a nmap implementation.");
   }
 
   pagedir_clear_page(f->owner->pagedir, f->uaddr);

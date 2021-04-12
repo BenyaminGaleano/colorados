@@ -350,10 +350,10 @@ pagedir_set_zeroed (uint32_t *pd, void *upage, bool zeroed)
   uint32_t *pte = lookup_page (pd, upage, false);
   if (pte != NULL)
   {
-    ASSERT(*pte & PTE_EXE);
-    if (zeroed)
+    if (zeroed) {
+      ASSERT(*pte & PTE_EXE);
       *pte |= PTE_ZEROED;
-    else
+    } else
       *pte &= ~(uint32_t) PTE_ZEROED;
   }
 }
