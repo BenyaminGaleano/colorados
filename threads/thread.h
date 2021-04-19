@@ -116,6 +116,7 @@ struct thread
     struct list swps;                    /* swap pages */
     struct list est;
     struct list mfiles;                  /* list of a mapped files */
+    int gmapid;                          /* global mapped file id */
     void *st_kernel_save;
 
     /* OS */

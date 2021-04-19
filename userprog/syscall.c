@@ -34,6 +34,7 @@ int stdout_and_check(int fd, const void *buffer, unsigned length);
 int stdin_and_check(int fd, void *buffer, unsigned length);
 void check_file(char *file);
 struct lock filesys_lock;
+struct lock mmap_lock;
 /** @colorados */
 
 void
@@ -41,6 +42,7 @@ syscall_init (void)
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
   lock_init(&filesys_lock);
+  lock_init(&mmap_lock);
 }
 
 /*
@@ -154,6 +156,10 @@ syscall_handler (struct intr_frame *f)
     lock_acquire(&filesys_lock);
     close(stkcast(st + 4, int));
     lock_release(&filesys_lock);
+    break;
+  case SYS_MMAP:
+    break;
+  case SYS_MUNMAP:
     break;
   default:
     printf ("system call!\n");
@@ -454,4 +460,20 @@ void close (int fd)
 
   file_close(f);
   stkcast(t->files + fdes.descriptor.index * 4, void *) = NULL;
+}
+
+int 
+sys_mmap(int fd, void *addr)
+{
+  lock_acquire(&mmap_lock);
+  // map memory
+  lock_release(&mmap_lock);
+}
+
+void
+sys_munmap(int mapid)
+{
+  lock_acquire(&mmap_lock);
+  // unmap memory
+  lock_release(&mmap_lock);
 }
