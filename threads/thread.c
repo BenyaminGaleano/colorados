@@ -248,7 +248,7 @@ void to_waiting_room(int64_t ticks)
 
 void propagate_priority(struct thread *t)
 {
-  #ifdef VM
+  #ifndef VM
   if(t->locked_me!=NULL)
   {
     if (t->priority > t->locked_me->holder->priority) {
@@ -277,7 +277,7 @@ void get_max_thread_priority(struct thread *t){
   struct thread *max;
   struct list *waiters;
 
-  #ifdef VM
+  #ifndef VM
   while (iter!=list_end(&t->locks))
   {
     waiters = &list_entry(iter, struct lock, elem)->semaphore.waiters;

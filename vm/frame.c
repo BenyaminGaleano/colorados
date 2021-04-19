@@ -54,7 +54,7 @@ init_frame_table(void)
     hash_init(&frame_table, ft_hash, ft_less, NULL);
     lock_init(&ft_lock);
     list_init(&clock);
-    printf("Actualmente pesa %u\n\n", sizeof(struct frame));
+    //printf("Actualmente pesa %u\n\n", sizeof(struct frame));
     initialized = true;
   }
 }
