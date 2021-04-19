@@ -8,6 +8,7 @@
 #include "threads/thread.h"
 #include "filesys/off_t.h"
 #include "filesys/file.h"
+#include "vm/frame.h"
 
 struct mfile
 {
@@ -28,7 +29,7 @@ mf_offset(struct mfile *s, void *fault_addr)
 }
 
 static inline unsigned
-mf_read_bytes(struct mfile *s, void *fault_addr)
+mf_page_bytes(struct mfile *s, void *fault_addr)
 { 
   ASSERT(pg_ofs(s->start) == 0);
   ASSERT(fault_addr >= s->start && fault_addr < s->end);
@@ -38,5 +39,7 @@ mf_read_bytes(struct mfile *s, void *fault_addr)
 
 struct mfile *find_mfile(struct thread *t, void *fault_addr);
 struct mfile *mf_byId(struct thread *t, int mapid);
+void mf_load_page(struct thread *t, void *fault_addr);
+void mf_store_page(struct frame *frame);
 
 #endif
