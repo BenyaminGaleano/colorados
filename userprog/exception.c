@@ -14,6 +14,7 @@
 #include "filesys/file.h"
 #include "vm/est.h"
 #include "vm/swap.h"
+#include "vm/mmf.h"
 #include "userprog/syscall.h"
 #endif
 
@@ -216,6 +217,11 @@ page_fault (struct intr_frame *f)
   if (pagedir_in_swap(t->pagedir, fault_addr))
   {
     sw_restore(t, pg_round_down(fault_addr));
+    return;
+  }
+
+  if (pagedir_is_mmap(t->pagedir, fault_addr)) {
+    mf_load_page(t, fault_addr);
     return;
   }
 

@@ -3,6 +3,8 @@
 #include "threads/malloc.h"
 #include "threads/vaddr.h"
 #include "userprog/pagedir.h"
+#include "vm/swap.h"
+#include "vm/mmf.h"
 #include <string.h>
 
 struct hash frame_table;
@@ -236,7 +238,7 @@ clock_replace(void)
   } else if (mmap && dirty)
   {
     // TODO: store in file
-    PANIC("Need a nmap implementation.");
+    mf_store_page(f);
   }
 
   pagedir_clear_page(f->owner->pagedir, f->uaddr);
