@@ -7,6 +7,7 @@
 #include "threads/vaddr.h"
 #include "threads/thread.h"
 #include "filesys/off_t.h"
+#include "filesys/file.h"
 
 struct mfile
 {
@@ -14,6 +15,8 @@ struct mfile
     void * start;
     void * end; // it's the last address mapped in file (included)
     int fd;
+    int mapid;
+    struct file *f;
 };
 
 static inline off_t
@@ -34,5 +37,6 @@ mf_read_bytes(struct mfile *s, void *fault_addr)
 }
 
 struct mfile *find_mfile(struct thread *t, void *fault_addr);
+struct mfile *mf_byId(struct thread *t, int mapid);
 
 #endif
