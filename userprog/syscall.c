@@ -498,7 +498,7 @@ sys_mmap(int fd, void *addr)
       free(mf);
       exit(-1);
     }
-    pagedir_set_swap(t->pagedir, addr + i, PHYS_BASE, true);
+    pagedir_set_page(t->pagedir, addr + i, PHYS_BASE, true);
     pagedir_set_mmap(t->pagedir, addr + i, true);
   }
 
