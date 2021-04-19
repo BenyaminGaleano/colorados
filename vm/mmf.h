@@ -5,6 +5,7 @@
 #include <debug.h>
 #include "threads/pte.h"
 #include "threads/vaddr.h"
+#include "threads/thread.h"
 
 struct mfile
 {
@@ -30,5 +31,7 @@ mf_read_bytes(struct mfile *s, void *fault_addr)
   return fault_addr >= pg_round_down(s->end) && fault_addr < pg_round_up(s->end) ? 
     (uint64_t) s->end - (uint64_t) pg_round_down(s->end) + 1: PGSIZE;
 }
+
+struct mfile *find_mfile(struct thread *t, void *fault_addr);
 
 #endif
