@@ -512,7 +512,7 @@ sys_mmap(int fd, void *addr)
   list_push_back(&t->mfiles, &mf->elem);
 
   lock_release(&mmap_lock);
-  return mf->mapid
+  return mf->mapid;
 }
 
 void
