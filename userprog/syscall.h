@@ -1,6 +1,11 @@
 #ifndef USERPROG_SYSCALL_H
 #define USERPROG_SYSCALL_H
 
+#ifdef VM
+#include "vm/mmf.h"
+void sys_mfdestroy(struct mfile *mf);
+#endif
+
 void syscall_init (void);
 
 void sys_closef(void *f);

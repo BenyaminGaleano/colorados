@@ -18,10 +18,6 @@
 #include "devices/shutdown.h"
 #include "userprog/pagedir.h"
 
-#ifdef VM
-#include "vm/mmf.h"
-#endif
-
 static void syscall_handler (struct intr_frame *);
 
 /** @colorados */
@@ -476,6 +472,14 @@ void close (int fd)
 }
 
 #ifdef VM
+void 
+sys_mfdestroy(struct mfile *mf)
+{
+  sys_closef(mf->f);
+  free(mf);
+}
+
+
 int 
 sys_mmap(int fd, void *addr)
 {
@@ -484,10 +488,10 @@ sys_mmap(int fd, void *addr)
   struct mfile *mf;
   struct files *f = stkcast(t->files + ((fd_t) fd).descriptor.index * 4, struct file *);
 
-  if (size == 0 || addr == 0 || pg_ofs(addr) != 0)
+  if (size == 0 || pg_ofs(addr) != 0)
     exit(-1);
 
-  if (f == NULL)
+  if (f == NULL || addr == 0)
     return -1;
 
   lock_acquire(&mmap_lock);
@@ -495,18 +499,26 @@ sys_mmap(int fd, void *addr)
   ASSERT(mf != NULL);
   mf->start = addr;
   mf->fd = fd;
-  mf->f = f;
+  fsys_lock();
+  mf->f = file_reopen(f);
+  fsys_unlock();
   mf->mapid = t->gmapid++;
   mf->end = mf->start + size;
   
   //check for overlap
   for (int i = 0; i < size; i+= PGSIZE) {
-    if (pagedir_get_page(t->pagedir, addr + 1) != NULL) {
+    if (pagedir_get_page(t->pagedir, addr + i) != NULL ||
+        pagedir_is_mmap(t->pagedir, addr + i) ||
+        pagedir_is_exe(t->pagedir, addr + i)) {
       free(mf);
-      exit(-1);
+      return -1;
     }
+
+    /* printf("* que %d %d\n", , ); */
+
     pagedir_set_page(t->pagedir, addr + i, PHYS_BASE, true);
     pagedir_set_mmap(t->pagedir, addr + i, true);
+    pagedir_clear_page(t->pagedir, addr + i);
   }
 
   list_push_back(&t->mfiles, &mf->elem);
@@ -535,10 +547,10 @@ sys_munmap(int mapid)
   for (; ipage <= mf->end; ipage+= PGSIZE) {
     pagedir_clear_page(t->pagedir, ipage);
     pagedir_set_mmap(t->pagedir, ipage, false);
-    pagedir_set_swap(t->pagedir, ipage, false);
   }
 
   list_remove(&mf->elem);
+  sys_closef(mf->f);
   free(mf);
 
   lock_release(&mmap_lock);
