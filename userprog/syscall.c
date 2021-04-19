@@ -5,6 +5,7 @@
 #include <string.h>
 #include "pagedir.h"
 #include "threads/palloc.h"
+#include "threads/palloc.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/init.h"
@@ -15,6 +16,11 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "devices/shutdown.h"
+#include "userprog/pagedir.h"
+
+#ifdef VM
+#include "vm/mmf.h"
+#endif
 
 static void syscall_handler (struct intr_frame *);
 
@@ -33,6 +39,9 @@ void checkbytes(void *, int);
 int stdout_and_check(int fd, const void *buffer, unsigned length);
 int stdin_and_check(int fd, void *buffer, unsigned length);
 void check_file(char *file);
+int sys_mmap(int fd, void *addr);
+void sys_munmap(int mapid);
+struct lock filesys_lock;
 struct lock filesys_lock;
 struct lock mmap_lock;
 /** @colorados */
@@ -158,8 +167,12 @@ syscall_handler (struct intr_frame *f)
     lock_release(&filesys_lock);
     break;
   case SYS_MMAP:
+    checkbytes(st, 16);
+    f->eax = sys_mmap(stkcast(st + 4, int), stkcast(st + 8, void *));
     break;
   case SYS_MUNMAP:
+    checkbytes(st, 8);
+    sys_munmap(stkcast(st + 4, int));
     break;
   default:
     printf ("system call!\n");
@@ -462,11 +475,35 @@ void close (int fd)
   stkcast(t->files + fdes.descriptor.index * 4, void *) = NULL;
 }
 
+#ifdef VM
 int 
 sys_mmap(int fd, void *addr)
 {
+  int size = filesize(fd);
+  struct thread *t = thread_current();
+  struct mfile *mf;
+
+  if (size == 0 || addr == 0 || pg_ofs(fd) != 0)
+    exit(-1);
+
   lock_acquire(&mmap_lock);
-  // map memory
+  mf = malloc(sizeof(struct mfile));
+  mf->start = addr;
+  mf->fd = fd;
+  mf->end = mf->start + size;
+  
+  //check for overlap
+  for (int i = 0; i < size; i+= PGSIZE) {
+    if (pagedir_get_page(t->pagedir, addr + 1) != NULL) {
+      free(mf);
+      exit(-1);
+    }
+    pagedir_set_swap(t->pagedir, addr + i, PHYS_BASE, true);
+    pagedir_set_mmap(t->pagedir, addr + i, true);
+  }
+
+  list_push_back(&t->mfiles, &mf->elem);
+
   lock_release(&mmap_lock);
 }
 
@@ -477,3 +514,4 @@ sys_munmap(int mapid)
   // unmap memory
   lock_release(&mmap_lock);
 }
+#endif

@@ -6,6 +6,7 @@
 #include "threads/pte.h"
 #include "threads/vaddr.h"
 #include "threads/thread.h"
+#include "filesys/off_t.h"
 
 struct mfile
 {
