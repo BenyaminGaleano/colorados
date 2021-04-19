@@ -26,6 +26,7 @@
 #ifdef VM
 #include "vm/est.h"
 #include "vm/swap.h"
+#include "vm/mmf.h"
 #endif
 
 static thread_func start_process NO_RETURN;
@@ -266,6 +267,11 @@ process_exit (void)
     while (!list_empty(&cur->est)) 
     {
       free(list_entry(list_pop_front(&cur->est), struct exe_segment, elem));
+    }
+
+    while (!list_empty(&cur->mfiles)) 
+    {
+      free(list_entry(list_pop_front(&cur->mfiles), struct mfile, elem));
     }
 
     sw_logout();
