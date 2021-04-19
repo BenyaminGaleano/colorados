@@ -4,7 +4,7 @@
 #include <syscall-nr.h>
 #include <string.h>
 #include "pagedir.h"
-#include "threads/palloc.h"
+#include "threads/malloc.h"
 #include "threads/palloc.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
@@ -482,14 +482,21 @@ sys_mmap(int fd, void *addr)
   int size = filesize(fd);
   struct thread *t = thread_current();
   struct mfile *mf;
+  struct files *f = stkcast(t->files + ((fd_t) fd).descriptor.index * 4, struct file *);
 
-  if (size == 0 || addr == 0 || pg_ofs(fd) != 0)
+  if (size == 0 || addr == 0 || pg_ofs(addr) != 0)
     exit(-1);
+
+  if (f == NULL)
+    return -1;
 
   lock_acquire(&mmap_lock);
   mf = malloc(sizeof(struct mfile));
+  ASSERT(mf != NULL);
   mf->start = addr;
   mf->fd = fd;
+  mf->f = f;
+  mf->mapid = t->gmapid++;
   mf->end = mf->start + size;
   
   //check for overlap
@@ -505,13 +512,35 @@ sys_mmap(int fd, void *addr)
   list_push_back(&t->mfiles, &mf->elem);
 
   lock_release(&mmap_lock);
+  return mf->mapid
 }
 
 void
 sys_munmap(int mapid)
 {
+  struct thread *t = thread_current();
+  struct mfile *mf;
+  void *ipage = NULL;
+  
+  mf = mf_byId(t, mapid);
+
+  // if fail test, you must changes it for "return;" and check if mapid is a valid id
+  if (mf == NULL)
+    exit(-1);
+
+  ipage = mf->start;
+
   lock_acquire(&mmap_lock);
   // unmap memory
+  for (; ipage <= mf->end; ipage+= PGSIZE) {
+    pagedir_clear_page(t->pagedir, ipage);
+    pagedir_set_mmap(t->pagedir, ipage, false);
+    pagedir_set_swap(t->pagedir, ipage, false);
+  }
+
+  list_remove(&mf->elem);
+  free(mf);
+
   lock_release(&mmap_lock);
 }
 #endif
