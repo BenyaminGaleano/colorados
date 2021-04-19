@@ -115,6 +115,7 @@ struct thread
     /* VM */
     struct list swps;                    /* swap pages */
     struct list est;
+    struct list mfiles;                  /* list of a mapped files */
     void *st_kernel_save;
 
     /* OS */
