@@ -415,7 +415,8 @@ pagedir_reinstall (uint32_t *pd, void *upage, void *kpage)
   pagedir_set_swap(pd, upage, swap);
   //pagedir_set_stack(pd, upage, swap);
   pagedir_set_exe(pd, upage, exe);
-  pagedir_set_zeroed(pd, upage, zeored);
+  if (exe)
+    pagedir_set_zeroed(pd, upage, zeored);
 
   return response;
 }
