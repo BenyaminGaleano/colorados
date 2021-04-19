@@ -20,13 +20,13 @@ void sw_write_frame(block_sector_t sector, struct frame *f);
 struct swap * 
 swe_hvalue(const struct hash_elem *elem)
 {
-    return elem==NULL? NULL: hash_entry(elem, struct swap, helem);
+    return elem == NULL ? NULL : hash_entry(elem, struct swap, helem);
 }
 
 struct swap *
 swe_lvalue(const struct list_elem *elem)
 {
-    return elem ==NULL? NULL:list_entry(elem, struct swap, lelem);
+    return elem == NULL ? NULL : list_entry(elem, struct swap, lelem);
 }
 
 unsigned 
@@ -185,7 +185,7 @@ sw_update (struct frame *f)
     curr = hash_insert(&swap_table, &swe->helem);
 
     if (curr == NULL) {
-        list_push_back(&swe->owner->swps, &swe->helem);
+        list_push_back(&swe->owner->swps, &swe->lelem);
         sw_write_frame(swe->sector, f);
         swe = NULL;
     } else {
