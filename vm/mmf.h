@@ -41,5 +41,6 @@ struct mfile *find_mfile(struct thread *t, void *fault_addr);
 struct mfile *mf_byId(struct thread *t, int mapid);
 void mf_load_page(struct thread *t, void *fault_addr);
 void mf_store_page(struct frame *frame);
+void mf_deallocate_pages(struct mfile *mf);
 
 #endif

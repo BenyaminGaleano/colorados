@@ -533,6 +533,7 @@ sys_munmap(int mapid)
   struct thread *t = thread_current();
   struct mfile *mf;
   void *ipage = NULL;
+  void *kpape = NULL;
   
   mf = mf_byId(t, mapid);
 
@@ -545,7 +546,12 @@ sys_munmap(int mapid)
   lock_acquire(&mmap_lock);
   // unmap memory
   for (; ipage <= mf->end; ipage+= PGSIZE) {
-    pagedir_clear_page(t->pagedir, ipage);
+    kpage = pagedir_get_page(t->pagedir, ipage);
+    if (kpage != NULL) {
+      mf_store_page(frame_lookup(kpage));
+      pagedir_clear_page(t->pagedir, ipage);
+      palloc_free_page(kpage);
+    }
     pagedir_set_mmap(t->pagedir, ipage, false);
   }
 

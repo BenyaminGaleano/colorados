@@ -74,5 +74,20 @@ mf_store_page(struct frame *frame)
     fsys_unlock();
 }
 
+void
+mf_deallocate_pages(struct mfile *mf)
+{
+  ASSERT(mf != NULL);
+  ASSERT(pg_ofs(mf->start) == 0);
+  ASSERT(pagedir_is_mmap(mf->start));
 
+  struct frame *frame;
+
+  for (void *ipage = mf->start; ipage <= mf->end; ipage+= PGSIZE) {
+    frame = frame_lookup_user(ipage);
+    if (frame == NULL)
+      continue;
+    mf_store_page(frame);
+  }
+}
 
