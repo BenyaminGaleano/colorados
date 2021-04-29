@@ -547,7 +547,7 @@ sys_munmap(int mapid)
   // unmap memory
   for (; ipage <= mf->end; ipage+= PGSIZE) {
     kpage = pagedir_get_page(t->pagedir, ipage);
-    if (kpage != NULL) {
+    if (kpage != NULL && pagedir_is_dirty(t->pagedir, ipage)) {
       mf_store_page(frame_lookup(kpage));
       pagedir_clear_page(t->pagedir, ipage);
       palloc_free_page(kpage);

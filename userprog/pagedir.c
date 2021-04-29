@@ -319,7 +319,6 @@ pagedir_set_exe (uint32_t *pd, void *upage, bool exe)
   uint32_t *pte = lookup_page (pd, upage, false);
   if (pte != NULL) 
     {
-      ASSERT(!(*pte & PTE_ZEROED))
       if (exe)
         *pte |= PTE_EXE;
       else 
@@ -406,17 +405,21 @@ pagedir_reinstall (uint32_t *pd, void *upage, void *kpage)
 
   //bool stack = pagedir_is_stack(pd, upage);
   bool exe = pagedir_is_exe(pd, upage);
-  bool zeored = pagedir_zeroed(pd, upage);
+  bool zeroed = pagedir_zeroed(pd, upage);
   bool swap = pagedir_in_swap(pd, upage);
   bool write = pagedir_writes_access(pd, upage);
 
   bool response = pagedir_set_page(pd, upage, kpage, write);
 
   pagedir_set_swap(pd, upage, swap);
-  //pagedir_set_stack(pd, upage, swap);
-  pagedir_set_exe(pd, upage, exe);
-  if (exe)
-    pagedir_set_zeroed(pd, upage, zeored);
+  pagedir_set_mmap(pd, upage, swap);
+  
+  if (exe) {
+    pagedir_set_exe(pd, upage, exe);
+    pagedir_set_zeroed(pd, upage, zeroed);
+  } else {
+    pagedir_set_mmap(pd, upage, zeroed);
+  }
 
   return response;
 }
