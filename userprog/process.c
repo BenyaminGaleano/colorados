@@ -271,7 +271,7 @@ process_exit (void)
 
     while (!list_empty(&cur->mfiles)) 
     {
-      sys_mfdestroy(list_entry(list_pop_front(&cur->mfiles), struct mfile, elem));
+      sys_mfdestroy(list_entry(list_begin(&cur->mfiles), struct mfile, elem));
     }
 
     sw_logout();

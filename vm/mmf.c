@@ -79,7 +79,6 @@ mf_deallocate_pages(struct mfile *mf)
 {
   ASSERT(mf != NULL);
   ASSERT(pg_ofs(mf->start) == 0);
-  ASSERT(pagedir_is_mmap(mf->start));
 
   struct frame *frame;
 
@@ -87,7 +86,12 @@ mf_deallocate_pages(struct mfile *mf)
     frame = frame_lookup_user(ipage);
     if (frame == NULL)
       continue;
-    mf_store_page(frame);
+      
+    ASSERT(pagedir_is_mmap(frame->owner->pagedir, ipage));
+
+    if (pagedir_is_dirty(frame->owner->pagedir, frame->uaddr)) {
+      mf_store_page(frame);
+    }
   }
 }
 

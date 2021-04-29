@@ -347,7 +347,7 @@ int open (const char *file)
   if(file_open != NULL && t->files != NULL)
   {
      if (t->afid > 1023) {
-      sys_closef(file_open);
+      file_close(file_open);
       exit(-1);
     }
 
@@ -475,6 +475,8 @@ void close (int fd)
 void 
 sys_mfdestroy(struct mfile *mf)
 {
+  mf_deallocate_pages(mf);
+  list_remove(&mf->elem);
   sys_closef(mf->f);
   free(mf);
 }
@@ -489,7 +491,7 @@ sys_mmap(int fd, void *addr)
   struct files *f = stkcast(t->files + ((fd_t) fd).descriptor.index * 4, struct file *);
 
   if (size == 0 || pg_ofs(addr) != 0)
-    exit(-1);
+    return -1;
 
   if (f == NULL || addr == 0)
     return -1;
@@ -499,9 +501,6 @@ sys_mmap(int fd, void *addr)
   ASSERT(mf != NULL);
   mf->start = addr;
   mf->fd = fd;
-  fsys_lock();
-  mf->f = file_reopen(f);
-  fsys_unlock();
   mf->mapid = t->gmapid++;
   mf->end = mf->start + size;
   
@@ -524,6 +523,11 @@ sys_mmap(int fd, void *addr)
   list_push_back(&t->mfiles, &mf->elem);
 
   lock_release(&mmap_lock);
+
+  fsys_lock();
+  mf->f = file_reopen(f);
+  fsys_unlock();
+
   return mf->mapid;
 }
 
@@ -533,7 +537,7 @@ sys_munmap(int mapid)
   struct thread *t = thread_current();
   struct mfile *mf;
   void *ipage = NULL;
-  void *kpape = NULL;
+  void *kpage = NULL;
   
   mf = mf_byId(t, mapid);
 
@@ -554,11 +558,11 @@ sys_munmap(int mapid)
     }
     pagedir_set_mmap(t->pagedir, ipage, false);
   }
+  lock_release(&mmap_lock);
 
   list_remove(&mf->elem);
   sys_closef(mf->f);
   free(mf);
 
-  lock_release(&mmap_lock);
 }
 #endif
