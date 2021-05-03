@@ -160,13 +160,13 @@ syscall_handler (struct intr_frame *f)
     f->eax = tell(stkcast(st + 4, int));
     lock_release(&filesys_lock);
     break;
-#ifdef VM
   case SYS_CLOSE:
     checkbytes(st, 8);
     lock_acquire(&filesys_lock);
     close(stkcast(st + 4, int));
     lock_release(&filesys_lock);
     break;
+#ifdef VM
   case SYS_MMAP:
     checkbytes(st, 16);
     f->eax = sys_mmap(stkcast(st + 4, int), stkcast(st + 8, void *));
