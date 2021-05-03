@@ -35,11 +35,13 @@ void checkbytes(void *, int);
 int stdout_and_check(int fd, const void *buffer, unsigned length);
 int stdin_and_check(int fd, void *buffer, unsigned length);
 void check_file(char *file);
+struct lock filesys_lock;
+
+#ifdef VM
+struct lock mmap_lock;
 int sys_mmap(int fd, void *addr);
 void sys_munmap(int mapid);
-struct lock filesys_lock;
-struct lock filesys_lock;
-struct lock mmap_lock;
+#endif
 /** @colorados */
 
 void
@@ -47,7 +49,9 @@ syscall_init (void)
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
   lock_init(&filesys_lock);
+#ifdef VM
   lock_init(&mmap_lock);
+#endif
 }
 
 /*
@@ -156,6 +160,7 @@ syscall_handler (struct intr_frame *f)
     f->eax = tell(stkcast(st + 4, int));
     lock_release(&filesys_lock);
     break;
+#ifdef VM
   case SYS_CLOSE:
     checkbytes(st, 8);
     lock_acquire(&filesys_lock);
@@ -170,6 +175,7 @@ syscall_handler (struct intr_frame *f)
     checkbytes(st, 8);
     sys_munmap(stkcast(st + 4, int));
     break;
+#endif
   default:
     printf ("system call!\n");
     thread_exit ();
