@@ -10,10 +10,12 @@ struct cache_block {
     struct lock lock;
     bool accessed;
     bool dirty;
-    block_sector_t sector;    
+    block_sector_t sector;
     unsigned char data[512];
 };
 
 void buffer_cache_init(void);
+void buffer_cache_write(block_sector_t sector, const void *buffer);
+void buffer_cache_read(block_sector_t sector, void *buffer);
 
 #endif
