@@ -11,18 +11,21 @@ ln -rs threads lib/kernel/
 ln -rs threads tests/threads/
 ln -rs threads userprog/
 ln -rs threads vm/
+ln -rs threads filesys/
 ln -rs devices threads/
 
 # generando enlaces de userprog
 echo -e '\n\e[32mEnlaces para userprog\e[0m\n'
 ln -rs userprog userprog/
 ln -rs userprog vm/
+ln -rs userprog filesys/
 
 # generando enlaces de userprog
 echo -e '\n\e[32mEnlaces para vm\e[0m\n'
 ln -rs vm threads/
 ln -rs vm userprog/
 ln -rs vm vm/
+ln -rs vm filesys/
 
 # generando enlaces de filesys
 echo -e '\n\e[32mEnlaces para filesys\e[0m\n'
