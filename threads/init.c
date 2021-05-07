@@ -35,6 +35,7 @@
 #include "devices/block.h"
 #include "devices/ide.h"
 #include "filesys/filesys.h"
+#include "filesys/cache.h"
 #include "filesys/fsutil.h"
 #endif
 
@@ -125,6 +126,7 @@ pintos_init (void)
   ide_init ();
   locate_block_devices ();
   filesys_init (format_filesys);
+  buffer_cache_init();
 #endif
 
   printf ("Boot complete.\n");
