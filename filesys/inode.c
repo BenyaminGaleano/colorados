@@ -37,21 +37,26 @@ struct inode
     int open_cnt;                       /* Number of openers. */
     bool removed;                       /* True if deleted, false otherwise. */
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
-    struct inode_disk data;             /* Inode content. */
   };
+
 
 /* Returns the block device sector that contains byte offset POS
    within INODE.
    Returns -1 if INODE does not contain data for a byte at offset
    POS. */
 static block_sector_t
-byte_to_sector (const struct inode *inode, off_t pos) 
+byte_to_sector (const struct inode *inode, off_t pos)
 {
-  ASSERT (inode != NULL);
-  if (pos < inode->data.length)
-    return inode->data.start + pos / BLOCK_SECTOR_SIZE;
-  else
-    return -1;
+    ASSERT (inode != NULL);
+    struct inode_disk *idsk = buffer_cache_connect(inode->sector);
+    block_sector_t result = -1;
+
+    if (pos < idsk->length) {
+        result = idsk->start + pos / BLOCK_SECTOR_SIZE;
+    }
+
+    buffer_cache_logout(inode->sector);
+    return result;
 }
 
 /* List of open inodes, so that opening a single inode twice
@@ -144,7 +149,7 @@ inode_open (block_sector_t sector)
   inode->deny_write_cnt = 0;
   inode->removed = false;
   /* block_read (fs_device, inode->sector, &inode->data); */
-  buffer_cache_read(inode->sector, &inode->data, -1);
+  /* buffer_cache_read(inode->sector, &inode->data, -1); */
   return inode;
 }
 
@@ -181,11 +186,13 @@ inode_close (struct inode *inode)
       list_remove (&inode->elem);
  
       /* Deallocate blocks if removed. */
-      if (inode->removed) 
+      if (inode->removed)
         {
           free_map_release (inode->sector, 1);
-          free_map_release (inode->data.start,
-                            bytes_to_sectors (inode->data.length)); 
+          struct inode_disk *idisk = buffer_cache_connect(inode->sector);
+          free_map_release (idisk->start,
+                            bytes_to_sectors (idisk->length));
+          buffer_cache_logout(inode->sector);
         }
 
       free (inode); 
@@ -353,5 +360,8 @@ inode_allow_write (struct inode *inode)
 off_t
 inode_length (const struct inode *inode)
 {
-  return inode->data.length;
+    struct inode_disk *idisk = buffer_cache_connect(inode->sector);
+    off_t length = idisk->length;
+    buffer_cache_logout(inode->sector);
+    return length;
 }

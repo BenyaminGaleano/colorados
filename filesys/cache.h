@@ -21,5 +21,8 @@ struct cache_block {
 void buffer_cache_init(void);
 void buffer_cache_write(block_sector_t sector, const void *buffer);
 void buffer_cache_read(block_sector_t sector, void *buffer, block_sector_t lazy);
+void buffer_cache_sync(void);
+void *buffer_cache_connect(block_sector_t sector);
+void buffer_cache_logout(block_sector_t sector);
 
 #endif

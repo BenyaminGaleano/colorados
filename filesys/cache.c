@@ -17,6 +17,8 @@ static unsigned char clock_hand = 0;
 void locate_block(block_sector_t sector, struct cache_block **block);
 void buffer_cache_clock_replace(struct cache_block **block, block_sector_t sector);
 void cache_block_load(struct cache_block *block);
+void cache_read_start(struct cache_block *block);
+void cache_read_end(struct cache_block *block);
 
 
 /// Assume that has the lock
@@ -152,15 +154,8 @@ locate_block(block_sector_t sector, struct cache_block **block)
 
 
 void
-buffer_cache_read(block_sector_t sector, void *buffer, block_sector_t lazy)
+cache_read_start(struct cache_block *block)
 {
-    ASSERT(sector != -1);
-    ASSERT(buffer != NULL);
-    
-    struct cache_block *block = NULL;
-
-    locate_block(sector, &block);
-
     lock_acquire(&block->lock);
     block->rwaiters++;
 
@@ -170,6 +165,32 @@ buffer_cache_read(block_sector_t sector, void *buffer, block_sector_t lazy)
     block->rwaiters--;
     block->active_readers++;
     lock_release(&block->lock);
+}
+
+
+void
+cache_read_end(struct cache_block *block)
+{
+    lock_acquire(&block->lock);
+    block->active_readers--;
+
+    if (!block->active_readers && block->wwaiters)
+        cond_signal(&block->writers, &block->lock);
+    lock_release(&block->lock);
+}
+
+
+void
+buffer_cache_read(block_sector_t sector, void *buffer, block_sector_t lazy)
+{
+    ASSERT(sector != -1);
+    ASSERT(buffer != NULL);
+    
+    struct cache_block *block = NULL;
+
+    locate_block(sector, &block);
+
+    cache_read_start(block);
 
     memcpy(buffer, block->data, BLOCK_SECTOR_SIZE);
 
@@ -177,12 +198,7 @@ buffer_cache_read(block_sector_t sector, void *buffer, block_sector_t lazy)
     if (lazy != -1) {
     }
     
-    lock_acquire(&block->lock);
-    block->active_readers--;
-
-    if (!block->active_readers && block->wwaiters)
-        cond_signal(&block->writers, &block->lock);
-    lock_release(&block->lock);
+    cache_read_end(block);
 }
 
 
@@ -220,4 +236,43 @@ buffer_cache_write(block_sector_t sector, const void *buffer)
     lock_release(&block->lock);
 }
 
+
+void
+buffer_cache_sync(void)
+{
+    struct cache_block *block;
+    for (int i = 0; i < CACHE_SIZE; i ++) {
+        block = buffer_cache + i;
+        lock_acquire(&block->lock);
+        if (block->dirty) {
+            ASSERT(block->sector != -1);
+            block->dirty = false;
+            block_write(fs_device, block->sector, block->data);
+        }
+        lock_release(&block->lock);
+    }
+}
+
+
+void *
+buffer_cache_connect(block_sector_t sector)
+{
+    ASSERT(sector != -1);
+    struct cache_block *block = NULL;
+    locate_block(sector, &block);
+    ASSERT(block != NULL);
+    cache_read_start(block);
+    return block->data;
+}
+
+
+void
+buffer_cache_logout(block_sector_t sector)
+{
+    ASSERT(sector != -1);
+    struct cache_block *block = NULL;
+    locate_block(sector, &block);
+    ASSERT(block != NULL);
+    cache_read_end(block);
+}
 
