@@ -6,7 +6,11 @@
 
 struct cache_block {
     struct condition readers;
+    unsigned active_readers;
+    unsigned rwaiters;
     struct condition writers;
+    unsigned active_writers;
+    unsigned wwaiters;
     struct lock lock;
     bool accessed;
     bool dirty;
@@ -16,6 +20,6 @@ struct cache_block {
 
 void buffer_cache_init(void);
 void buffer_cache_write(block_sector_t sector, const void *buffer);
-void buffer_cache_read(block_sector_t sector, void *buffer);
+void buffer_cache_read(block_sector_t sector, void *buffer, block_sector_t lazy);
 
 #endif
