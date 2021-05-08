@@ -1,5 +1,7 @@
 #include "filesys/cache.h"
 #include "filesys/filesys.h"
+#include "threads/thread.h"
+#include "devices/timer.h"
 #include <debug.h>
 #include <stdio.h>
 #include <string.h>
@@ -8,6 +10,7 @@
 
 static struct cache_block buffer_cache[CACHE_SIZE];
 static unsigned char clock_hand = 0;
+static bool alive = false;
 
 #define hand_value(clock_hand) clock_hand % 64 // overflow is ok because 64 = 2^6
 
@@ -19,6 +22,8 @@ void buffer_cache_clock_replace(struct cache_block **block, block_sector_t secto
 void cache_block_load(struct cache_block *block);
 void cache_read_start(struct cache_block *block);
 void cache_read_end(struct cache_block *block);
+void cache_watcher(void *arg);
+void read_ahead(void *arg);
 
 
 /// Assume that has the lock
@@ -45,6 +50,9 @@ buffer_cache_init(void)
         cond_init(&buffer_cache[i].readers);
         cond_init(&buffer_cache[i].writers);
     }
+    
+    alive = true;
+    thread_create("cache-watcher", PRI_DEFAULT, cache_watcher, NULL);
 }
 
 
@@ -181,7 +189,7 @@ cache_read_end(struct cache_block *block)
 
 
 void
-buffer_cache_read(block_sector_t sector, void *buffer, block_sector_t lazy)
+buffer_cache_read(block_sector_t sector, void *buffer)
 {
     ASSERT(sector != -1);
     ASSERT(buffer != NULL);
@@ -193,10 +201,6 @@ buffer_cache_read(block_sector_t sector, void *buffer, block_sector_t lazy)
     cache_read_start(block);
 
     memcpy(buffer, block->data, BLOCK_SECTOR_SIZE);
-
-    // TODO: load lazy
-    if (lazy != -1) {
-    }
     
     cache_read_end(block);
 }
@@ -238,10 +242,13 @@ buffer_cache_write(block_sector_t sector, const void *buffer)
 
 
 void
-buffer_cache_sync(void)
+buffer_cache_sync(bool postdie)
 {
     struct cache_block *block;
     for (int i = 0; i < CACHE_SIZE; i ++) {
+        if (!postdie && !alive){
+            break;
+        }
         block = buffer_cache + i;
         lock_acquire(&block->lock);
         if (block->dirty) {
@@ -276,3 +283,36 @@ buffer_cache_logout(block_sector_t sector)
     cache_read_end(block);
 }
 
+void
+cache_watcher(void * arg UNUSED)
+{
+    while (true) {
+        timer_sleep(TIMER_FREQ);
+        if (alive) {
+            buffer_cache_sync(false);
+        }
+    }
+}
+
+void
+buffer_cache_end(void)
+{
+    alive = false;
+    buffer_cache_sync(true);
+}
+
+void
+read_ahead(void *arg)
+{
+    block_sector_t sector = (block_sector_t) arg;
+    struct cache_block *block;
+    locate_block(sector, &block);
+}
+
+void
+buffer_cache_async_fetch(block_sector_t sector)
+{
+    if (sector != -1) {
+        thread_create("read-post", PRI_DEFAULT, read_ahead, sector);
+    }
+}

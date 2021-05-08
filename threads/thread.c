@@ -249,6 +249,7 @@ void to_waiting_room(int64_t ticks)
 void propagate_priority(struct thread *t)
 {
   #ifndef VM
+  enum intr_level old_level = intr_disable();
   if(t->locked_me!=NULL)
   {
     if (t->priority > t->locked_me->holder->priority) {
@@ -256,6 +257,7 @@ void propagate_priority(struct thread *t)
       propagate_priority(t->locked_me->holder);
     }
   }
+  intr_set_level(old_level);
   #endif
 }
 void sort_list_by_priority(void){
@@ -273,11 +275,12 @@ bool max_comparator(const struct list_elem * a, const struct list_elem *b, void 
 }
 
 void get_max_thread_priority(struct thread *t){
+  #ifndef VM
+  enum intr_level old_level = intr_disable();
   struct list_elem *iter = list_begin(&t->locks);
   struct thread *max;
   struct list *waiters;
 
-  #ifndef VM
   while (iter!=list_end(&t->locks))
   {
     waiters = &list_entry(iter, struct lock, elem)->semaphore.waiters;
@@ -292,6 +295,7 @@ void get_max_thread_priority(struct thread *t){
 
     iter = list_next(iter);
   }
+  intr_set_level(old_level);
   #endif
 }
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -529,10 +533,12 @@ thread_exit (void)
 
   struct lock *l;
   struct thread *cur = thread_current();
+  enum intr_level old_level = intr_disable();
   while (!list_empty(&cur->locks)) {
     l = list_entry(list_pop_front(&cur->locks), struct lock, elem);
     lock_release(l);
   }
+  intr_set_level(old_level);
 
 #ifdef USERPROG
   process_exit ();
