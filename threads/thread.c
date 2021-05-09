@@ -787,6 +787,7 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init(&t->est);
   list_init(&t->mfiles);
   t->gmapid = 0;
+  lock_init(&t->pdlock);
   /* VM - end */
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);

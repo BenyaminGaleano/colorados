@@ -79,10 +79,11 @@ sema_down (struct semaphore *sema)
 
         if (localcurrentlock != NULL) {
           current_thread->locked_me = localcurrentlock;
-
+        #ifndef VM
           get_max_thread_priority(localcurrentlock->holder);
           propagate_priority(localcurrentlock->holder);
           sort_list_by_priority();
+        #endif
         }
       } else {
         list_push_back(&sema->waiters, &current_thread->elem);

@@ -205,6 +205,7 @@ clock_replace(void)
 {
   ASSERT(list_size(&clock) > 0)
   struct frame *f;
+  bool success;
 
   lock_ft();
   while (true) {
@@ -217,12 +218,15 @@ clock_replace(void)
     hand = list_next(hand);
 
     ASSERT(f != NULL && f->owner != NULL);
+    success = lock_try_acquire(&f->owner->pdlock);
 
     if (pagedir_is_accessed(f->owner->pagedir, f->uaddr))
     {
       pagedir_set_accessed(f->owner->pagedir, f->uaddr, false);
     } else
       break;
+
+    lock_release(&f->owner->pdlock);
   }
 
   bool exe = pagedir_is_exe(f->owner->pagedir, f->uaddr);
@@ -242,6 +246,7 @@ clock_replace(void)
   }
 
   pagedir_clear_page(f->owner->pagedir, f->uaddr);
+  lock_release(&f->owner->pdlock);
   _frame_chg_owner(f);
   memset(f->address, 0, PGSIZE);
   unlock_ft();

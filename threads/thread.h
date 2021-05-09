@@ -118,7 +118,7 @@ struct thread
     struct list mfiles;                  /* list of a mapped files */
     int gmapid;                          /* global mapped file id */
     void *st_kernel_save;
-
+    struct lock pdlock;
     /* OS */
 
     /* Shared between thread.c and synch.c. */
