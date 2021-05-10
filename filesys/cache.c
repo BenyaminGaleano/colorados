@@ -50,7 +50,7 @@ buffer_cache_init(void)
         cond_init(&buffer_cache[i].readers);
         cond_init(&buffer_cache[i].writers);
     }
-    
+    #ifndef IMPROVE
     alive = true;
     #ifndef VM
     thread_create("cache-watcher", PRI_DEFAULT, cache_watcher, NULL);
@@ -89,13 +89,13 @@ buffer_cache_clock_replace(struct cache_block **block, block_sector_t sector)
             continue;
         }
 
-        if (iblock->accessed) {
-            iblock->accessed = false;
+        if (iblock->wwaiters||iblock->rwaiters) {
             lock_release(&iblock->lock);
             continue;
         }
 
-        if (iblock->wwaiters || iblock->rwaiters) {
+        if (iblock->accessed) {
+            iblock->accessed=false;
             lock_release(&iblock->lock);
             continue;
         }
@@ -314,7 +314,7 @@ read_ahead(void *arg)
 void
 buffer_cache_async_fetch(block_sector_t sector)
 {
-#ifndef VM
+#ifndef IMPROVE
     if (sector != -1) {
         thread_create("read-post", PRI_DEFAULT, read_ahead, sector);
     }

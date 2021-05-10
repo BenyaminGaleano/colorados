@@ -409,16 +409,16 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  fsys_lock();
+  /*fsys_lock();*/
   file = filesys_open (file_name);
-  fsys_unlock();
+  /*fsys_unlock();*/
   if (file == NULL) {
     printf("load: %s: open failed\n", file_name);
     goto done;
   }
-  fsys_lock();
+  /*fsys_lock();*/
   file_deny_write(file);
-  fsys_unlock();
+  /*fsys_unlock();*/
   t->exec_file=file;
 
   /* Read and verify executable header. */

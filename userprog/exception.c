@@ -232,10 +232,10 @@ page_fault (struct intr_frame *f)
     kpage = palloc_get_page(PAL_USER | PAL_ZERO);
 
     if (!pagedir_zeroed(t->pagedir, fault_addr)) {
-      fsys_lock();
+      /*fsys_lock();*/
       file_seek(t->exec_file, est_offset(s, fault_addr));
       file_read(t->exec_file, kpage, est_read_bytes(s, fault_addr));
-      fsys_unlock();
+      /*fsys_unlock();*/
     }
 
     ASSERT(pagedir_reinstall(t->pagedir, pg_round_down(fault_addr), kpage));
