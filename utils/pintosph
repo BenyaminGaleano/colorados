@@ -1,8 +1,17 @@
-#!/bin/sh
+#!/bin/bash
 
-echo -e '\n\e[1m\e[36m * PINTOS PHASE - Utility\n * Made by Colorados Team in 2021\e[0m'
+bold="\033[1m"
+reset="\033[0m"
+green="\033[32m"
+red="\033[31m"
+yellow="\033[33m"
+cyan="\033[36m"
 
-echo -e '\n\e[32m Changing phase...\e[0m'
+echo -e $bold -- colorados --
+
+echo -e $bold $cyan '\n * PINTOS PHASE - Utility\n * Made by Colorados Team in 2021'
+
+echo -e $reset $green '\n Changing phase...'
 
 if [ -n "$BASH_VERSION" ]; then
 SHRC='.bashrc'
@@ -27,16 +36,15 @@ with open(os.environ['HOME'] + '/%s' % '$SHRC', 'r+') as bfile:
 EOF`
 
 PINTOSPH="$1"
-echo -e "\e[32m Current phase in active terminal: $PINTOSPH\e[0m"
+echo -e $green " Current phase in active terminal: $PINTOSPH"
 export PINTOSPH
 
-
-echo -e "\n\e[33m Errors in writing of $SHRC:\e[31m\n"
+echo -e $yellow "\n Errors in writing of $SHRC:\n" $red
 
 if [ -n "$pintosph" ]; then
   echo $pintosph
-else 
-  echo -e '\e[1m\e[32m None! :)'
+else
+  echo -e $bold $green ' None! :)'
 fi
 echo -e "\e[0m"
 
@@ -46,10 +54,10 @@ MLINE=`cat ~/$SHRC | grep '# stop@000001'`
 if [ -n "$MLINE" ]; then
 echo $MLINE
 else
-echo -e "\e[31mNone!! you need to add the follow lines into ~/$SHRC\n"
-echo " PINTOSPH=\"\" # stop@000001"
-echo " export PINTOSPH"
+echo -e $red "None!! you need to add the follow lines into ~/$SHRC\n"
+echo "PINTOSPH=\"\" # stop@000001"
+echo "export PINTOSPH
 fi
 
-echo -e '\n\e[33m bye!\n'
+echo -e $yellow '\n bye!\n' $reset
 

@@ -1,0 +1,4 @@
+#!/bin/bash
+
+docker run -v ~/pintos:/root/pintos \
+    -v ~/pintos/.pintos-docker:/root/.pintos-docker -it pintos
