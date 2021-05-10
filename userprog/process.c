@@ -289,11 +289,16 @@ process_exit (void)
          directory before destroying the process's page
          directory, or our active page directory will be one
          that's been freed (and cleared). */
-      lock_acquire(&cur->pdlock);
+  #ifdef VM
+      lock_ft();
+  #endif   
       cur->pagedir = NULL;
       pagedir_activate (NULL);
       pagedir_destroy (pd);
       lock_release(&cur->pdlock);
+  #ifdef VM
+      unlock_ft();
+  #endif 
     }
 }
 

@@ -190,7 +190,7 @@ sw_update (struct frame *f)
         swe = NULL;
     } else {
         free(swe);
-        swe = fte_hvalue(curr);
+        swe = swe_hvalue(curr);
     }
 
     goto exit;

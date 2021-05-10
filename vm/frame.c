@@ -13,14 +13,24 @@ struct list_elem *hand;
 struct lock ft_lock;
 bool initialized = false;
 
-#define lock_ft() lock_acquire(&ft_lock)
-#define unlock_ft() lock_release(&ft_lock)
 
 unsigned ft_hash (const struct hash_elem *, void *aux);
 bool ft_less (const struct hash_elem *, const struct hash_elem *, void *);
 struct frame *_frame_chg_owner(struct frame *f);
 
+void
+lock_ft(void)
+{
+  if(initialized)
+    lock_acquire(&ft_lock);
+}
 
+void
+unlock_ft(void)
+{
+  if(initialized)
+  lock_release(&ft_lock);
+}
 struct frame *
 fte_hvalue(const struct hash_elem *elem)
 {
@@ -100,8 +110,10 @@ ft_remove(void *frame)
 
   target.address = frame;
 
-  lock_ft();
+  bool mine = ft_lock.holder==thread_current();
 
+  if(!mine)
+    lock_ft();
   curr = hash_delete(&frame_table, &target.helem); 
 
   if (curr != NULL) {
@@ -111,7 +123,8 @@ ft_remove(void *frame)
     }
   }
 
-  unlock_ft();
+  if(!mine)
+    unlock_ft();
 
   return fte;
 }
@@ -126,7 +139,9 @@ frame_lookup (void *address)
   struct hash_elem *e;
 
   f.address = address;
+  lock_ft();
   e = hash_find (&frame_table, &f.helem);
+  unlock_ft();
   return e != NULL ? fte_hvalue(e) : NULL;
 }
 
@@ -192,8 +207,10 @@ clock_add(struct frame *f)
   ASSERT(f != NULL)
   if (!f->inclock)
   {
+    lock_ft();
     list_push_back(&clock, &f->eclock);
     hand = list_begin(&clock);
+    unlock_ft();
   }
 
   f->inclock = true;
@@ -205,7 +222,7 @@ clock_replace(void)
 {
   ASSERT(list_size(&clock) > 0)
   struct frame *f;
-  bool success;
+
 
   lock_ft();
   while (true) {
@@ -218,15 +235,13 @@ clock_replace(void)
     hand = list_next(hand);
 
     ASSERT(f != NULL && f->owner != NULL);
-    success = lock_try_acquire(&f->owner->pdlock);
-
+    
     if (pagedir_is_accessed(f->owner->pagedir, f->uaddr))
     {
       pagedir_set_accessed(f->owner->pagedir, f->uaddr, false);
     } else
       break;
 
-    lock_release(&f->owner->pdlock);
   }
 
   bool exe = pagedir_is_exe(f->owner->pagedir, f->uaddr);
@@ -246,7 +261,6 @@ clock_replace(void)
   }
 
   pagedir_clear_page(f->owner->pagedir, f->uaddr);
-  lock_release(&f->owner->pdlock);
   _frame_chg_owner(f);
   memset(f->address, 0, PGSIZE);
   unlock_ft();

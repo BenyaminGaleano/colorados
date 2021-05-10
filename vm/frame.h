@@ -34,5 +34,7 @@ bool ft_access_multiple(void *uaddr, void *uaddr_end);
 void clock_add(struct frame *f);
 struct frame *clock_replace(void);
 
+void lock_ft(void);
+void unlock_ft(void);
 #endif
 

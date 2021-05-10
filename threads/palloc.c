@@ -162,8 +162,11 @@ palloc_free_multiple (void *pages, size_t page_cnt)
   if (pool == &user_pool && pages != NULL) {
     for (unsigned i = 0; i < page_cnt; i++) {
       f = ft_remove(pages + i*PGSIZE);
-      ASSERT(f != NULL);
-      free(f);
+      if(f!=NULL)
+      {
+        free(f);
+      }else
+      return;
     }
   }
 #endif

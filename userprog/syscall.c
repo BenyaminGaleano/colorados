@@ -17,6 +17,7 @@
 #include "threads/vaddr.h"
 #include "devices/shutdown.h"
 #include "userprog/pagedir.h"
+#include "userprog/exception.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -494,7 +495,7 @@ sys_mmap(int fd, void *addr)
   int size = filesize(fd);
   struct thread *t = thread_current();
   struct mfile *mf;
-  struct files *f = stkcast(t->files + ((fd_t) fd).descriptor.index * 4, struct file *);
+  struct file *f = stkcast(t->files + ((fd_t) fd).descriptor.index * 4, struct file *);
 
   if (size == 0 || pg_ofs(addr) != 0)
     return -1;
