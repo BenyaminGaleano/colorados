@@ -52,7 +52,6 @@ buffer_cache_init(void)
     }
     #ifndef IMPROVE
     alive = true;
-    #ifndef VM
     thread_create("cache-watcher", PRI_DEFAULT, cache_watcher, NULL);
     #endif
 }
