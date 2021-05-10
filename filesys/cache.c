@@ -52,7 +52,9 @@ buffer_cache_init(void)
     }
     
     alive = true;
+    #ifndef VM
     thread_create("cache-watcher", PRI_DEFAULT, cache_watcher, NULL);
+    #endif
 }
 
 
@@ -312,7 +314,9 @@ read_ahead(void *arg)
 void
 buffer_cache_async_fetch(block_sector_t sector)
 {
+#ifndef VM
     if (sector != -1) {
         thread_create("read-post", PRI_DEFAULT, read_ahead, sector);
     }
+#endif
 }
