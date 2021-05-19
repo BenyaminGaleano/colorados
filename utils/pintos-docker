@@ -1,4 +1,5 @@
 #!/bin/bash
 
-docker run -v ~/pintos:/root/pintos \
-    -v ~/pintos/.pintos-docker:/root/.pintos-docker -it pintos
+SET pwd="%~dp0"
+
+docker run -v %pwd%:/root/pintos -v %pwd%\.pintos-docker:/root/.pintos-docker -it pintos
