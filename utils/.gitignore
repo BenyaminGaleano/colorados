@@ -2,3 +2,5 @@ setitimer-helper
 squish-pty
 squish-unix
 *.o
+.container-id
+

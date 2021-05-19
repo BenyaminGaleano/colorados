@@ -1,5 +1,21 @@
 #!/bin/bash
 
-SET pwd="%~dp0"
+dockerid="$(dirname $0)"
+dockerid="$(dirname $dockerid)"
 
-docker run -v %pwd%:/root/pintos -v %pwd%\.pintos-docker:/root/.pintos-docker -it pintos
+dockerid=$dockerid/.container-id
+
+if [ ! -f "$dockerid" ]; then
+    docker create -t -i -v ~/pintos:/root/pintos \
+    -v ~/pintos/.pintos-docker:/root/.pintos-docker --cidfile $dockerid pintos
+fi
+
+dockerid=`cat $dockerid`
+
+if [[ -n "$(docker container list --no-trunc -q | grep $dockerid)" ]];
+then
+    docker exec -it $dockerid bash
+else
+    docker start -i $dockerid
+fi
+
