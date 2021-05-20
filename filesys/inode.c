@@ -6,6 +6,7 @@
 #include "filesys/filesys.h"
 #include "filesys/free-map.h"
 #include "filesys/cache.h"
+#include "off_t.h"
 #include "threads/malloc.h"
 
 /* Identifies an inode. */
@@ -18,7 +19,7 @@ struct inode_disk
     block_sector_t start;               /* First data sector. */
     off_t length;                       /* File size in bytes. */
     unsigned magic;                     /* Magic number. */
-    uint32_t unused[125];               /* Not used. */
+    uint32_t pointers[125];             /* Pointers to another blocks. */
   };
 
 /* Returns the number of sectors to allocate for an inode SIZE
@@ -30,7 +31,7 @@ bytes_to_sectors (off_t size)
 }
 
 /* In-memory inode. */
-struct inode 
+struct inode
   {
     struct list_elem elem;              /* Element in inode list. */
     block_sector_t sector;              /* Sector number of disk location. */
@@ -40,15 +41,352 @@ struct inode
   };
 
 /* @colorados */
+static block_sector_t
+index_sector(struct inode_disk *idisk, int index, bool create, bool clear)
+{
+    ASSERT(idisk != NULL);
+    ASSERT((create || clear) && !(create && clear)); // create XOR clear
+
+    bool success;
+    static char zeros[BLOCK_SECTOR_SIZE];
+    static bool initzeros = false;
+
+    if (create && !initzeros) {
+        memset(zeros, 0, BLOCK_SECTOR_SIZE);
+    }
+
+    initzeros = true;
+
+    block_sector_t sector;
+    block_sector_t result;
+    block_sector_t saux;
+    block_sector_t ssaux;
+    int iaux;
+    int *idaux;
+
+    if (index == 0) {
+        if (clear) {
+            idisk->start = 0;
+        }
+
+        if (idisk->start == 0 && create) {
+            success = free_map_allocate(1, &sector);
+            if (!success) {
+                return -1;
+            }
+            buffer_cache_write(sector, zeros);
+            idisk->start = sector;
+            idisk->length++;
+        } else if (idisk->start == 0) {
+            return -1;
+        }
+
+        return idisk->start;
+    } else if (--index < 100) {
+        if (clear) {
+            idisk->pointers[index] = 0;
+        }
+
+        if (idisk->pointers[index] == 0 && create) {
+            success = free_map_allocate(1, &sector);
+            if (!success) {
+                return -1;
+            }
+
+            buffer_cache_write(sector, zeros);
+            idisk->pointers[index] = sector;
+            idisk->length++;
+        } else if (idisk->pointers[index] == 0) {
+            return -1;
+        }
+
+        return idisk->pointers[index];
+    } else if (index < 3172) {
+        iaux = index - 100;
+
+        saux = idisk->pointers[100 + iaux/128];
+        if (saux == 0 && create) {
+            success = free_map_allocate(1, &sector);
+            if (!success) {
+                return -1;
+            }
+            buffer_cache_write(sector, zeros);
+
+            idisk->pointers[100 + iaux/128] = sector;
+            saux = sector;
+        } else if (saux == 0) {
+            return -1;
+        }
+
+        idaux = buffer_cache_connect(saux);
+
+        if (clear) {
+            idaux[iaux % 128] = 0;
+        }
+
+        if (idaux[iaux % 128] == 0 && create) {
+            success = free_map_allocate(1, &sector);
+
+            if (!success) {
+                return -1;
+            }
+
+            buffer_cache_write(sector, zeros);
+
+            idaux[iaux % 128] = sector;
+            idisk->length++;
+        } else if (idisk->pointers[index] == 0) {
+            buffer_cache_logout(saux);
+            return -1;
+        }
+
+        result = idaux[iaux % 128];
+        buffer_cache_logout(saux);
+
+        return result;
+    } else {
+        iaux = index - 3172;
+        saux = idisk->pointers[124];
+        
+        if (saux == 0 && create) {
+            success = free_map_allocate(1, &sector);
+            if (!success) {
+                return -1;
+            }
+            buffer_cache_write(sector, zeros);
+
+            idisk->pointers[124] = sector;
+            saux = sector;
+        } else if (saux == 0) {
+            return -1;
+        }
+
+        idaux = buffer_cache_connect(saux);
+        if (index < 3198) {
+            if (clear) {
+                idaux[iaux] = 0;
+            }
+
+            if (idaux[iaux] == 0 && create) {
+                success = free_map_allocate(1, &sector);
+                if (!success) {
+                    buffer_cache_logout(saux);
+                    return -1;
+                }
+                buffer_cache_write(sector, zeros);
+                idaux[iaux] = sector;
+                idisk->length++;
+            } else if (saux == 0) {
+                buffer_cache_logout(saux);
+                return -1;
+            }
+
+            result = idaux[iaux];
+            buffer_cache_logout(saux);
+            
+            return result;
+        } else if (index < 16254) {
+            iaux = iaux - 26;
+            ssaux = idaux[26 + iaux / 128]; // next block
+
+            if (ssaux == 0 && create) {
+                success = free_map_allocate(1, &sector);
+
+                if (!success) {
+                    buffer_cache_logout(saux);
+                    return -1;
+                }
+
+                buffer_cache_write(sector, zeros);
+
+                idaux[26 + iaux / 128] = sector;
+                ssaux = sector;
+            } else if (saux == 0) {
+                buffer_cache_logout(saux);
+                return -1;
+            }
+
+            buffer_cache_logout(saux);
+            saux = ssaux;
+
+            idaux = buffer_cache_connect(saux);
+            
+            if (clear) {
+                idaux[iaux % 128] = 0;
+            }
+
+            if (idaux[iaux % 128] == 0 && create) {
+                success = free_map_allocate(1, &sector);
+                if (!success) {
+                    buffer_cache_logout(saux);
+                    return -1;
+                }
+                buffer_cache_write(sector, zeros);
+
+                idaux[iaux % 128] = sector;
+                idisk->length++;
+            } else if (idaux[iaux % 128] == 0) {
+                buffer_cache_logout(saux);
+                return -1;
+            }
+
+            result = idaux[iaux % 128];
+            buffer_cache_logout(saux);
+
+            return result;
+        } else {
+            buffer_cache_logout(saux);
+            PANIC("[colorados]: maximum index");
+        }
+    }
+
+
+    return -1;
+}
+
+
+static void
+free_sectors(struct inode_disk *idisk, unsigned index_from)
+{
+    ASSERT(idisk != NULL);
+    ASSERT(bytes_to_sectors(idisk->length) > index_from)
+
+    int count = bytes_to_sectors(idisk->length) - bytes_to_sectors(index_from) - 1;
+
+    count--;
+    
+    block_sector_t sector;
+    block_sector_t saux;
+    unsigned index;
+    int *idaux;
+    while (--count + 1) {
+        index = index_from + count;
+        sector = index_sector(idisk, index, false);
+        if (sector != -1) {
+            free_map_release(sector, 1);
+            idisk->length--;
+
+            if (index < 3172) {
+                index = index - 100;
+                sector = idisk->pointers[100 + index/128];
+                if ( index % 128 == 0 ) {
+                    free_map_release(sector, 1);
+                    idisk->pointers[100 + index/128] = 0;
+                }
+            } else {
+                index = index - 3172;
+                sector = idisk->pointers[124];
+                
+                if (index == 0) {
+                    free_map_release(sector, 1);
+                    idisk->pointers[124] = 0;
+                    continue;
+                }
+
+                idaux = buffer_cache_connect(sector);
+
+                if (index < 13082) {
+                    index = index - 26;
+                    saux = idaux[26 + index / 128]; // next block
+
+                    if (index % 128 == 0) {
+                        free_map_release(saux, 1);
+                        idaux[26 + index / 128] = 0;
+                        buffer_cache_logout(sector);
+                        continue;
+                    }
+                }
+
+                buffer_cache_logout(sector);
+            }
+        }
+    }
+}
+
+
+static bool
+expand_size(struct inode_disk *idisk, off_t pos)
+{
+    if (pos < idisk->length) {
+        return true;
+    }
+
+    int count;
+    int index = idisk->length / BLOCK_SECTOR_SIZE;
+    count = (pos / BLOCK_SECTOR_SIZE) - index;
+
+    if (count == 0) {
+        idisk->length = pos + 1;
+        return true;
+    }
+
+    // grow content size
+    index++;
+    block_sector_t sector;
+
+    int sindex = index;
+
+    // TODO fill with zeros new sector
+    while (count--) {
+        if (index_sector(idisk, index++, true) == -1) {
+            if (sindex + 1 < index) {
+                free_sectors(idisk, sindex);
+            }
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+
 block_sector_t
 index_to_sector(const struct inode_disk *idisk, unsigned index, block_sector_t *next)
 {
     block_sector_t result = -1;
-    if (idisk->length >= index * BLOCK_SECTOR_SIZE)
-        result = idisk->start + index;
+    block_sector_t saux;
+    int iaux;
+    int *idaux;
+    if (idisk->length >= index * BLOCK_SECTOR_SIZE) {
+        // now, it's not continuos
+        // result = idisk->start + index;
+
+        /* if (index == 0) { */
+            /* result = idisk->start; */
+        /* } else if (--index < 100) { */
+            /* result = idisk->pointers[index]; */
+        /* } else if (index < 3172) { */
+            /* iaux = index - 100; */
+            /* saux = idisk->pointers[100 + iaux/128]; */
+            /* idaux = buffer_cache_connect(saux); */
+            /* result = idaux[iaux % 128]; */
+            /* buffer_cache_logout(saux); */
+        /* } else { */
+            /* iaux = index - 3172; */
+            /* saux = idisk->pointers[124]; */
+            /* idaux = buffer_cache_connect(saux); */
+            /* if (index < 3198) { */
+                /* result = idaux[iaux]; */
+                /* buffer_cache_logout(saux); */
+            /* } else if (index < 16254) { */
+                /* iaux = iaux - 26; */
+                /* result = idaux[26 + iaux / 128]; // next block */
+                /* buffer_cache_logout(saux); */
+                /* saux = result; */
+                /* idaux = buffer_cache_connect(saux); */
+                /* result = idaux[iaux % 128]; */
+                /* buffer_cache_logout(saux); */
+            /* } else { */
+                /* buffer_cache_logout(saux); */
+            /* } */
+        /* } */
+        result = index_sector((struct inode_disk *) idisk, index, false);
+    }
 
     if (next != NULL && result == -1) {
         *next = index_to_sector(idisk, index + 1, NULL);
+    } else {
+        *next = -1;
     }
 
     return result;
@@ -105,24 +443,30 @@ inode_create (block_sector_t sector, off_t length)
   disk_inode = calloc (1, sizeof *disk_inode);
   if (disk_inode != NULL)
     {
-      size_t sectors = bytes_to_sectors (length);
-      disk_inode->length = length;
-      disk_inode->magic = INODE_MAGIC;
-      if (free_map_allocate (sectors, &disk_inode->start)) 
-        {
-          buffer_cache_write(sector, disk_inode);
-          if (sectors > 0) 
-            {
-              static char zeros[BLOCK_SECTOR_SIZE];
-              size_t i;
-              
-              for (i = 0; i < sectors; i++) 
-                buffer_cache_write(disk_inode->start + i, zeros);
-            }
-          success = true; 
-        }
+        /* size_t sectors = bytes_to_sectors (length); */
+        disk_inode->length = length;
+        disk_inode->magic = INODE_MAGIC;
 
-      free (disk_inode);
+        if (length == 0 || (length > 0 && expand_size(disk_inode, length - 1))) {
+            buffer_cache_write(sector, disk_inode);
+            success = true;
+        }
+            
+        /* if (free_map_allocate (sectors, &disk_inode->start))  */
+            /* { */
+            /* buffer_cache_write(sector, disk_inode); */
+            /* if (sectors > 0)  */
+                /* { */
+                /* static char zeros[BLOCK_SECTOR_SIZE]; */
+                /* size_t i; */
+
+                /* for (i = 0; i < sectors; i++)  */
+                    /* buffer_cache_write(disk_inode->start + i, zeros); */
+                /* } */
+            /* success = true;  */
+            /* } */
+
+        free (disk_inode);
     }
   return success;
 }
@@ -197,14 +541,15 @@ inode_close (struct inode *inode)
       /* Deallocate blocks if removed. */
       if (inode->removed)
         {
-          free_map_release (inode->sector, 1);
           struct inode_disk *idisk = buffer_cache_connect(inode->sector);
-          free_map_release (idisk->start,
-                            bytes_to_sectors (idisk->length));
+          /* free_map_release (idisk->start, */
+                            /* bytes_to_sectors (idisk->length)); */
+          free_sectors(idisk, 0);
           buffer_cache_logout(inode->sector);
+          free_map_release (inode->sector, 1);
         }
 
-      free (inode); 
+      free (inode);
     }
 }
 
