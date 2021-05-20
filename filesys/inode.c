@@ -45,7 +45,7 @@ static block_sector_t
 index_sector(struct inode_disk *idisk, int index, bool create, bool clear)
 {
     ASSERT(idisk != NULL);
-    ASSERT((create || clear) && !(create && clear)); // create XOR clear
+    ASSERT(!(create && clear)); // create NAND clear
 
     bool success;
     static char zeros[BLOCK_SECTOR_SIZE];
@@ -261,7 +261,7 @@ free_sectors(struct inode_disk *idisk, unsigned index_from)
     int *idaux;
     while (--count + 1) {
         index = index_from + count;
-        sector = index_sector(idisk, index, false);
+        sector = index_sector(idisk, index, false, true);
         if (sector != -1) {
             free_map_release(sector, 1);
             idisk->length--;
@@ -328,7 +328,7 @@ expand_size(struct inode_disk *idisk, off_t pos)
 
     // TODO fill with zeros new sector
     while (count--) {
-        if (index_sector(idisk, index++, true) == -1) {
+        if (index_sector(idisk, index++, true, false) == -1) {
             if (sindex + 1 < index) {
                 free_sectors(idisk, sindex);
             }
@@ -380,7 +380,7 @@ index_to_sector(const struct inode_disk *idisk, unsigned index, block_sector_t *
                 /* buffer_cache_logout(saux); */
             /* } */
         /* } */
-        result = index_sector((struct inode_disk *) idisk, index, false);
+        result = index_sector((struct inode_disk *) idisk, index, false, false);
     }
 
     if (next != NULL && result == -1) {
