@@ -76,7 +76,6 @@ index_sector(struct inode_disk *idisk, int index, bool create, bool clear)
             }
             buffer_cache_write(sector, zeros);
             idisk->start = sector;
-            idisk->length++;
         } else if (idisk->start == 0) {
             return -1;
         }
@@ -95,7 +94,6 @@ index_sector(struct inode_disk *idisk, int index, bool create, bool clear)
 
             buffer_cache_write(sector, zeros);
             idisk->pointers[index] = sector;
-            idisk->length++;
         } else if (idisk->pointers[index] == 0) {
             return -1;
         }
@@ -134,14 +132,14 @@ index_sector(struct inode_disk *idisk, int index, bool create, bool clear)
             buffer_cache_write(sector, zeros);
 
             idaux[iaux % 128] = sector;
-            idisk->length++;
-        } else if (idisk->pointers[index] == 0) {
+        } else if (idaux[iaux % 128] == 0) {
             buffer_cache_logout(saux);
             return -1;
         }
 
         result = idaux[iaux % 128];
         buffer_cache_logout(saux);
+        ASSERT(result != 0);
 
         return result;
     } else {
@@ -175,8 +173,7 @@ index_sector(struct inode_disk *idisk, int index, bool create, bool clear)
                 }
                 buffer_cache_write(sector, zeros);
                 idaux[iaux] = sector;
-                idisk->length++;
-            } else if (saux == 0) {
+            } else if (idaux[iaux] == 0) {
                 buffer_cache_logout(saux);
                 return -1;
             }
@@ -201,7 +198,7 @@ index_sector(struct inode_disk *idisk, int index, bool create, bool clear)
 
                 idaux[26 + iaux / 128] = sector;
                 ssaux = sector;
-            } else if (saux == 0) {
+            } else if (ssaux == 0) {
                 buffer_cache_logout(saux);
                 return -1;
             }
@@ -224,7 +221,6 @@ index_sector(struct inode_disk *idisk, int index, bool create, bool clear)
                 buffer_cache_write(sector, zeros);
 
                 idaux[iaux % 128] = sector;
-                idisk->length++;
             } else if (idaux[iaux % 128] == 0) {
                 buffer_cache_logout(saux);
                 return -1;
@@ -264,7 +260,6 @@ free_sectors(struct inode_disk *idisk, unsigned index_from)
         sector = index_sector(idisk, index, false, true);
         if (sector != -1) {
             free_map_release(sector, 1);
-            idisk->length--;
 
             if (index < 3172) {
                 index = index - 100;
@@ -313,7 +308,13 @@ expand_size(struct inode_disk *idisk, off_t pos)
 
     int count;
     int index = idisk->length / BLOCK_SECTOR_SIZE;
-    count = (pos / BLOCK_SECTOR_SIZE) - index;
+    int sindex;
+    block_sector_t sector;
+    count = bytes_to_sectors(pos) - index;
+
+    if (idisk->length == 0) {
+        index = -1;
+    }
 
     if (count == 0) {
         idisk->length = pos + 1;
@@ -322,9 +323,8 @@ expand_size(struct inode_disk *idisk, off_t pos)
 
     // grow content size
     index++;
-    block_sector_t sector;
 
-    int sindex = index;
+    sindex = index;
 
     // TODO fill with zeros new sector
     while (count--) {
@@ -335,6 +335,7 @@ expand_size(struct inode_disk *idisk, off_t pos)
             return false;
         }
     }
+    idisk->length = pos + 1;
     
     return true;
 }
@@ -388,6 +389,7 @@ index_to_sector(const struct inode_disk *idisk, unsigned index, block_sector_t *
     } else {
         *next = -1;
     }
+
 
     return result;
 }
@@ -444,14 +446,14 @@ inode_create (block_sector_t sector, off_t length)
   if (disk_inode != NULL)
     {
         /* size_t sectors = bytes_to_sectors (length); */
-        disk_inode->length = length;
+        /* disk_inode->length = length; */
         disk_inode->magic = INODE_MAGIC;
 
         if (length == 0 || (length > 0 && expand_size(disk_inode, length - 1))) {
             buffer_cache_write(sector, disk_inode);
             success = true;
         }
-            
+
         /* if (free_map_allocate (sectors, &disk_inode->start))  */
             /* { */
             /* buffer_cache_write(sector, disk_inode); */

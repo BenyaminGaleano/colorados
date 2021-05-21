@@ -50,7 +50,7 @@ buffer_cache_init(void)
         cond_init(&buffer_cache[i].readers);
         cond_init(&buffer_cache[i].writers);
     }
-    #ifndef IMPROVE
+    #ifdef IMPROVE
     alive = true;
     thread_create("cache-watcher", PRI_DEFAULT, cache_watcher, NULL);
     #endif
