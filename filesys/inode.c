@@ -302,6 +302,8 @@ free_sectors(struct inode_disk *idisk, unsigned index_from)
 static bool
 expand_size(struct inode_disk *idisk, off_t pos)
 {
+    ASSERT(pos >= 0);
+
     if (pos < idisk->length) {
         return true;
     }
@@ -450,6 +452,9 @@ inode_create (block_sector_t sector, off_t length)
         disk_inode->magic = INODE_MAGIC;
 
         if (length == 0 || (length > 0 && expand_size(disk_inode, length - 1))) {
+            if (length == 0) {
+                disk_inode->length = 0;
+            }
             buffer_cache_write(sector, disk_inode);
             success = true;
         }
@@ -644,7 +649,15 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   if (inode->deny_write_cnt)
     return 0;
 
-  while (size > 0) 
+  struct inode_disk *idisk = buffer_cache_connect(inode->sector);
+    
+  if (offset + size - 1 > idisk->length) {
+      ASSERT(expand_size(idisk, offset + size - 1));
+  }
+
+  buffer_cache_logout(inode->sector);
+
+  while (size > 0)
     {
       /* Sector to write, starting byte offset within sector. */
       block_sector_t next_idx = -1;

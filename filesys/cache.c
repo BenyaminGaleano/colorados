@@ -88,7 +88,8 @@ buffer_cache_clock_replace(struct cache_block **block, block_sector_t sector)
             continue;
         }
 
-        if (iblock->wwaiters||iblock->rwaiters) {
+        if (iblock->wwaiters||iblock->rwaiters||
+            iblock->active_readers||iblock->active_writers) {
             lock_release(&iblock->lock);
             continue;
         }
@@ -101,7 +102,6 @@ buffer_cache_clock_replace(struct cache_block **block, block_sector_t sector)
 
         break;
     }
-
 
     ASSERT(iblock != NULL);
 
