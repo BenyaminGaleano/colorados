@@ -7,7 +7,7 @@
 #include "filesys/inode.h"
 #include "filesys/directory.h"
 #include "filesys/cache.h"
-#include "threads/malloc.h"
+#include "threads/palloc.h"
 
 /* Partition that contains the file system. */
 struct block *fs_device;
@@ -48,17 +48,39 @@ filesys_done (void)
 bool
 filesys_create (const char *name, off_t initial_size) 
 {
-  block_sector_t inode_sector = 0;
-  struct dir *dir = dir_open_root ();
-  bool success = (dir != NULL
-                  && free_map_allocate (1, &inode_sector)
-                  && inode_create (inode_sector, initial_size)
-                  && dir_add (dir, name, inode_sector));
-  if (!success && inode_sector != 0) 
-    free_map_release (inode_sector, 1);
-  dir_close (dir);
+    block_sector_t inode_sector = 0;
 
-  return success;
+    /* char name[NAME_MAX + 1]; */
+    char *dirpath = NULL;
+    /* struct dir *dir; */
+    bool success;
+
+    /* if (path == NULL || *path == '\0') { */
+        /* goto done; */
+    /* } */
+
+    /* dirpath = malloc(strlen(path) + 1); */
+    /* dirname(path, dirpath, name); */
+
+    /* dir = dir_navigate(dirpath, false); */
+
+    /* if (dir == NULL) { */
+        /* goto done; */
+    /* } */
+
+    struct dir *dir = dir_open_root ();
+    success = (dir != NULL
+                    && free_map_allocate (1, &inode_sector)
+                    && inode_create (inode_sector, initial_size)
+                    && dir_add (dir, name, inode_sector));
+    if (!success && inode_sector != 0) 
+        free_map_release (inode_sector, 1);
+
+done:
+    /* free(dirname); */
+    dir_close (dir);
+
+    return success;
 }
 
 /* Opens the file with the given NAME.
@@ -67,16 +89,32 @@ filesys_create (const char *name, off_t initial_size)
    Fails if no file named NAME exists,
    or if an internal memory allocation fails. */
 struct file *
-filesys_open (const char *name)
+filesys_open (const char *path)
 {
-  struct dir *dir = dir_open_root ();
-  struct inode *inode = NULL;
+    /* struct dir *dir = dir_open_root (); */
+    struct inode *inode = NULL;
+    char name[NAME_MAX + 1];
+    char *dirpath = NULL;
+    struct dir *dir;
+    bool success;
 
-  if (dir != NULL)
-    dir_lookup (dir, name, &inode);
-  dir_close (dir);
+    if (path == NULL || *path == '\0') {
+        goto done;
+    }
 
-  return file_open (inode);
+    dirpath = palloc_get_page(0);
+    dirname(path, dirpath, name);
+
+    dir = dir_navigate(dirpath, false);
+
+    if (dir != NULL)
+        dir_lookup (dir, name, &inode);
+
+done:
+    dir_close (dir);
+    palloc_free_page(dirpath);
+
+    return file_open (inode);
 }
 
 /* Deletes the file named NAME.
@@ -84,11 +122,31 @@ filesys_open (const char *name)
    Fails if no file named NAME exists,
    or if an internal memory allocation fails. */
 bool
-filesys_remove (const char *name) 
+filesys_remove (const char *path)
 {
-  struct dir *dir = dir_open_root ();
-  bool success = dir != NULL && dir_remove (dir, name);
-  dir_close (dir); 
+    char name[NAME_MAX + 1];
+    char *dirpath = NULL;
+    struct dir *dir;
+    bool success;
+
+    if (path == NULL || *path == '\0') {
+        goto done;
+    }
+
+    dirpath = palloc_get_page(0);
+    dirname(path, dirpath, name);
+
+    dir = dir_navigate(dirpath, false);
+
+    if (dir == NULL) {
+        goto done;
+    }
+    
+    success = dir != NULL && dir_remove (dir, path);
+
+done:
+    dir_close (dir);
+    palloc_free_page(dirpath);
 
   return success;
 }
@@ -111,7 +169,7 @@ filesys_mkdir(const char *path)
 {
     block_sector_t inode_sector = 0;
     char target[NAME_MAX + 1];
-    char *dirpath;
+    char *dirpath = NULL;
     struct dir *dir;
     struct dir *parent;
     bool success = false;
@@ -120,7 +178,7 @@ filesys_mkdir(const char *path)
         goto done;
     }
 
-    dirpath = malloc(strlen(path) + 1);
+    dirpath = palloc_get_page(0);
 
     dirname(path, dirpath, target);
 
@@ -152,7 +210,7 @@ filesys_mkdir(const char *path)
     ASSERT(dir_add_subdir (dir, "..", dir_get_inumber(parent)));
     dir_close (dir);
 done:
-    free(dirpath);
+    palloc_free_page(dirpath);
 
     return success;
 }

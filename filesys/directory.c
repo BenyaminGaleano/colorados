@@ -5,6 +5,7 @@
 #include "filesys/filesys.h"
 #include "filesys/inode.h"
 #include "threads/malloc.h"
+#include "threads/palloc.h"
 #include "threads/thread.h"
 
 /* A directory. */
@@ -208,28 +209,32 @@ dir_add_subdir(struct dir *dir, const char *name, block_sector_t inode_sector)
 struct dir *
 dir_navigate(const char *name_, bool cd)
 {
-    char *name;
+    char *name = NULL;
     struct dir *curr;
 
     ASSERT(name_ != NULL);
 
+    struct thread *t = thread_current();
+
+    if ( name_[0] == '/' ) {
+        curr = dir_open_root();
+    } else {
+        if (t->current_dir == NULL) {
+            curr = dir_open_root();
+        } else {
+            curr = dir_reopen(t->current_dir);
+        }
+    }
+
     if (*name_ == '\0')
         goto done;
-    
-    name = malloc(strlen(name_) + 1);
+
+    name = palloc_get_page(0);
     strlcpy(name, name_, strlen(name_));
 
     struct dir_entry entry;
     char *save_ptr;
     char *token = strtok_r(name, "/", &save_ptr);
-
-    struct thread *t = thread_current();
-
-    if ( name[0] == '/' ) {
-        curr = dir_open_root();
-    } else {
-        curr = dir_reopen(t->current_dir);
-    }
 
     ASSERT(curr != NULL);
 
@@ -251,7 +256,7 @@ dir_navigate(const char *name_, bool cd)
     } while ((token = strtok_r(NULL, "/", &save_ptr)) != NULL);
 
 done:
-    free(name);
+    palloc_free_page(name);
 
     if (curr != NULL && cd) {
         dir_close(t->current_dir);
@@ -268,7 +273,7 @@ dirname(const char *path, char *dir, char *name)
     char *save_ptr;
     char *token;
     char *stop;
-    char *workspace = malloc(strlen(path) + 1);
+    char *workspace = palloc_get_page(0);
 
     if (strlen(path) > 0) {
         memcpy(workspace, path, strlen(path) + 1);
@@ -317,7 +322,8 @@ dirname(const char *path, char *dir, char *name)
     memcpy(name, stop, strlen(stop) + 1);
 
 done:
-    free(workspace);
+    /* free(workspace); */
+    palloc_free_page(workspace);
 }
 
 /* @colorados */
