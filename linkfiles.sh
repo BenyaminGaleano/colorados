@@ -29,6 +29,7 @@ ln -rs vm filesys/
 
 # generando enlaces de filesys
 echo -e '\n\e[32mEnlaces para filesys\e[0m\n'
+ln -rs filesys threads/
 ln -rs filesys userprog/
 ln -rs filesys filesys/
 ln -rs filesys vm/

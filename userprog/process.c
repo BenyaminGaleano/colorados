@@ -91,13 +91,21 @@ start_process (void *file_name_)
 
   /** @colorados */
   struct thread *t = thread_current();
+
+  // setup current directory
+  if ((*t->parent)->current_dir == NULL) {
+      t->current_dir = dir_open_root();
+  } else {
+      t->current_dir = dir_reopen((*t->parent)->current_dir);
+  }
+
   int argc = 1;
   size_t tlen;
   if (success != 1)
   {
     goto free_page;
   }
-  
+ 
   char **spaux = if_.esp - 1000; // 1kB
 
   if_.esp -= strlen(token) + 1;

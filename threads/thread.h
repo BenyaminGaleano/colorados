@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include "fixed-point.h"
 #include "synch.h"
+#include "filesys/directory.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -118,6 +119,9 @@ struct thread
     struct list mfiles;                  /* list of a mapped files */
     int gmapid;                          /* global mapped file id */
     void *st_kernel_save;
+
+     /* FILESYS */
+    struct dir *current_dir;              /* mark the current directory for thread */
     
     /* OS */
 
