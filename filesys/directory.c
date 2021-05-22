@@ -1,11 +1,11 @@
 #include "filesys/directory.h"
-#include <cstdbool>
 #include <stdio.h>
 #include <string.h>
 #include <list.h>
 #include "filesys/filesys.h"
 #include "filesys/inode.h"
 #include "threads/malloc.h"
+#include "threads/thread.h"
 
 /* A directory. */
 struct dir 
@@ -195,6 +195,71 @@ bool
 dir_add_subdir(struct dir *dir, const char *name, block_sector_t inode_sector)
 {
     return dir_add_entry(dir, name, inode_sector, true);
+}
+
+
+struct dir *
+dir_navigate(const char *name_, bool cd, bool exact)
+{
+    char *name;
+    struct dir *curr;
+
+    ASSERT(name_ != NULL);
+
+    if (*name_ == '\0' || strlen (name_) > NAME_MAX)
+        goto done;
+    
+    name = malloc(strlen(name_) + 1);
+    strlcpy(name, name_, NAME_MAX + 1);
+
+    struct dir_entry entry;
+    char *save_ptr;
+    char *token = strtok_r(name, "/", &save_ptr);
+
+    struct thread *t = thread_current();
+
+    if ( name[0] == '/' ) {
+        curr = dir_open_root();
+    } else {
+        curr = dir_reopen(t->current_dir);
+    }
+
+    ASSERT(curr != NULL);
+
+    if (token == NULL) {
+        goto done;
+    }
+
+    do {
+        if (!lookup(curr, token, &entry, NULL)) {
+            token = strtok_r(NULL, "/", &save_ptr);
+            if (token != NULL || exact) {
+                dir_close(curr);
+                curr = NULL;
+            }
+            goto done;
+        } else if (!entry.isdir) {
+            token = strtok_r(NULL, "/", &save_ptr);
+            if (token != NULL || exact) {
+                dir_close(curr);
+                curr = NULL;
+            }
+            goto done;
+        }
+
+        dir_close(curr);
+        curr = dir_open(inode_open(entry.inode_sector));
+    } while ((token = strtok_r(NULL, "/", &save_ptr)) != NULL);
+
+done:
+    free(name);
+
+    if (curr != NULL && cd) {
+        dir_close(t->current_dir);
+        t->current_dir = dir_reopen(curr);
+    }
+
+    return curr;
 }
 
 /* @colorados */
