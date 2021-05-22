@@ -1,4 +1,5 @@
 #include "filesys/directory.h"
+#include <cstdbool>
 #include <stdio.h>
 #include <string.h>
 #include <list.h>
@@ -19,6 +20,7 @@ struct dir_entry
     block_sector_t inode_sector;        /* Sector number of header. */
     char name[NAME_MAX + 1];            /* Null terminated file name. */
     bool in_use;                        /* In use or free? */
+    bool isdir;
   };
 
 /* Creates a directory with space for ENTRY_CNT entries in the
@@ -133,14 +135,10 @@ dir_lookup (const struct dir *dir, const char *name,
   return *inode != NULL;
 }
 
-/* Adds a file named NAME to DIR, which must not already contain a
-   file by that name.  The file's inode is in sector
-   INODE_SECTOR.
-   Returns true if successful, false on failure.
-   Fails if NAME is invalid (i.e. too long) or a disk or memory
-   error occurs. */
-bool
-dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
+/* @colorados */
+
+static bool
+dir_add_entry (struct dir *dir, const char *name, block_sector_t inode_sector, bool isdir)
 {
   struct dir_entry e;
   off_t ofs;
@@ -171,6 +169,7 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
 
   /* Write slot. */
   e.in_use = true;
+  e.isdir = isdir;
   strlcpy (e.name, name, sizeof e.name);
   e.inode_sector = inode_sector;
   success = inode_write_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
@@ -178,6 +177,28 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
  done:
   return success;
 }
+
+
+/* Adds a file named NAME to DIR, which must not already contain a
+   file by that name.  The file's inode is in sector
+   INODE_SECTOR.
+   Returns true if successful, false on failure.
+   Fails if NAME is invalid (i.e. too long) or a disk or memory
+   error occurs. */
+bool
+dir_add(struct dir *dir, const char *name, block_sector_t inode_sector)
+{
+    return dir_add_entry(dir, name, inode_sector, false);
+}
+
+bool
+dir_add_subdir(struct dir *dir, const char *name, block_sector_t inode_sector)
+{
+    return dir_add_entry(dir, name, inode_sector, true);
+}
+
+/* @colorados */
+
 
 /* Removes any entry for NAME in DIR.
    Returns true if successful, false on failure,

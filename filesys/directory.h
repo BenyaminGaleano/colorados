@@ -27,4 +27,12 @@ bool dir_add (struct dir *, const char *name, block_sector_t);
 bool dir_remove (struct dir *, const char *name);
 bool dir_readdir (struct dir *, char name[NAME_MAX + 1]);
 
+/* @colorados */
+// navigate and return the directory, return true if can navigate until
+// latest or penultimate or false in other case. If cd is true change directory
+// for current thread
+struct dir *dir_navigate(const char *path, bool cd);
+bool dir_add_subdir (struct dir *, const char *name, block_sector_t);
+/* @colorados */
+
 #endif /* filesys/directory.h */
