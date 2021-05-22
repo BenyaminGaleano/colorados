@@ -103,3 +103,11 @@ do_format (void)
   free_map_close ();
   printf ("done.\n");
 }
+
+
+bool
+filesys_mkdir(const char *name)
+{
+    return true;
+}
+
