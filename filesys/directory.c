@@ -199,7 +199,7 @@ dir_add_subdir(struct dir *dir, const char *name, block_sector_t inode_sector)
 
 
 struct dir *
-dir_navigate(const char *name_, bool cd, bool exact)
+dir_navigate(const char *name_, bool cd, bool exact, bool *fit, char *last)
 {
     char *name;
     struct dir *curr;
@@ -226,16 +226,27 @@ dir_navigate(const char *name_, bool cd, bool exact)
 
     ASSERT(curr != NULL);
 
+    if (fit != NULL) {
+        *fit = true;
+    }
+
     if (token == NULL) {
         goto done;
     }
 
     do {
+        if (last != NULL) {
+            strlcpy(last, token, NAME_MAX + 1);
+        }
+
         if (!lookup(curr, token, &entry, NULL)) {
             token = strtok_r(NULL, "/", &save_ptr);
             if (token != NULL || exact) {
                 dir_close(curr);
                 curr = NULL;
+            }
+            if (fit != NULL) {
+                *fit = false;
             }
             goto done;
         } else if (!entry.isdir) {
@@ -244,11 +255,15 @@ dir_navigate(const char *name_, bool cd, bool exact)
                 dir_close(curr);
                 curr = NULL;
             }
+            if (fit != NULL) {
+                *fit = false;
+            }
             goto done;
         }
 
         dir_close(curr);
         curr = dir_open(inode_open(entry.inode_sector));
+
     } while ((token = strtok_r(NULL, "/", &save_ptr)) != NULL);
 
 done:
