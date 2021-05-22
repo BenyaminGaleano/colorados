@@ -46,29 +46,29 @@ filesys_done (void)
    Fails if a file named NAME already exists,
    or if internal memory allocation fails. */
 bool
-filesys_create (const char *name, off_t initial_size) 
+filesys_create (const char *path, off_t initial_size)
 {
     block_sector_t inode_sector = 0;
 
-    /* char name[NAME_MAX + 1]; */
+    char name[NAME_MAX + 1];
     char *dirpath = NULL;
-    /* struct dir *dir; */
-    bool success;
+    struct dir *dir;
+    bool success = false;
 
-    /* if (path == NULL || *path == '\0') { */
-        /* goto done; */
-    /* } */
+    if (path == NULL || *path == '\0') {
+        goto done;
+    }
 
-    /* dirpath = malloc(strlen(path) + 1); */
-    /* dirname(path, dirpath, name); */
+    dirpath = palloc_get_page(0);
+    if (!dirname(path, dirpath, name)) {
+        goto done;
+    }
 
-    /* dir = dir_navigate(dirpath, false); */
+    dir = dir_navigate(dirpath, false);
 
-    /* if (dir == NULL) { */
-        /* goto done; */
-    /* } */
-
-    struct dir *dir = dir_open_root ();
+    /* struct dir *dir = dir_open_root (); */
+    /* dir_close (dir); */
+    /* dir = dir_open_root (); */
     success = (dir != NULL
                     && free_map_allocate (1, &inode_sector)
                     && inode_create (inode_sector, initial_size)
@@ -77,7 +77,7 @@ filesys_create (const char *name, off_t initial_size)
         free_map_release (inode_sector, 1);
 
 done:
-    /* free(dirname); */
+    palloc_free_page(dirpath);
     dir_close (dir);
 
     return success;
@@ -96,7 +96,7 @@ filesys_open (const char *path)
     char name[NAME_MAX + 1];
     char *dirpath = NULL;
     struct dir *dir;
-    bool success;
+    bool success = false;
 
     if (path == NULL || *path == '\0') {
         goto done;
@@ -127,7 +127,7 @@ filesys_remove (const char *path)
     char name[NAME_MAX + 1];
     char *dirpath = NULL;
     struct dir *dir;
-    bool success;
+    bool success = false;
 
     if (path == NULL || *path == '\0') {
         goto done;

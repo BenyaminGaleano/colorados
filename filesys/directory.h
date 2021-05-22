@@ -32,7 +32,7 @@ bool dir_readdir (struct dir *, char name[NAME_MAX + 1]);
 // latest or penultimate (depends of exact value) or NULL in other case.
 // If cd is true change directory for current thread
 struct dir *dir_navigate(const char *path, bool cd);
-void dirname(const char *path, char *dir, char *name);
+bool dirname(const char *path, char *dir, char *name);
 bool dir_add_subdir (struct dir *, const char *name, block_sector_t);
 block_sector_t dir_get_inumber(struct dir *);
 /* @colorados */

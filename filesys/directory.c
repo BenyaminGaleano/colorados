@@ -230,7 +230,7 @@ dir_navigate(const char *name_, bool cd)
         goto done;
 
     name = palloc_get_page(0);
-    strlcpy(name, name_, strlen(name_));
+    memcpy(name, name_, strlen(name_) + 1);
 
     struct dir_entry entry;
     char *save_ptr;
@@ -267,13 +267,14 @@ done:
 }
 
 
-void
+bool
 dirname(const char *path, char *dir, char *name)
 {
     char *save_ptr;
     char *token;
     char *stop;
     char *workspace = palloc_get_page(0);
+    bool success = true;
 
     if (strlen(path) > 0) {
         memcpy(workspace, path, strlen(path) + 1);
@@ -295,6 +296,13 @@ dirname(const char *path, char *dir, char *name)
         goto done;
     } else if (workspace == stop) {
         *dir = '\0';
+
+        if (strlen(stop) > NAME_MAX) {
+            success = false;
+            *name = '\0';
+            goto done;
+        }
+
         memcpy(name, stop, strlen(stop) + 1);
         goto done;
     }
@@ -319,11 +327,18 @@ dirname(const char *path, char *dir, char *name)
         memcpy(dir, workspace, strlen(workspace) + 1);
     }
 
+    if (strlen(stop) > NAME_MAX) {
+        success = false;
+        *name = '\0';
+        goto done;
+    }
+
     memcpy(name, stop, strlen(stop) + 1);
 
 done:
     /* free(workspace); */
     palloc_free_page(workspace);
+    return success;
 }
 
 /* @colorados */
