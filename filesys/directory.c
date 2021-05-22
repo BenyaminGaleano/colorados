@@ -135,6 +135,12 @@ dir_lookup (const struct dir *dir, const char *name,
   return *inode != NULL;
 }
 
+block_sector_t
+dir_get_inumber(struct dir *dir)
+{
+    return inode_get_inumber(dir_get_inode(dir));
+}
+
 /* @colorados */
 
 static bool

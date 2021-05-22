@@ -126,6 +126,13 @@ filesys_mkdir(const char *path)
         free_map_release (inode_sector, 1);
     dir_close (dir);
 
+    if (success) {
+        ASSERT((dir = dir_navigate(path, false, true, NULL, NULL)));
+        ASSERT(dir_add_subdir (dir, ".", dir_get_inumber(dir)));
+        // TODO parent ..
+        dir_close (dir);
+    }
+
     return success;
 }
 

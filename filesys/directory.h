@@ -33,6 +33,7 @@ bool dir_readdir (struct dir *, char name[NAME_MAX + 1]);
 // If cd is true change directory for current thread
 struct dir *dir_navigate(const char *path, bool cd, bool exact, bool *fit, char *last);
 bool dir_add_subdir (struct dir *, const char *name, block_sector_t);
+block_sector_t dir_get_inumber(struct dir *);
 /* @colorados */
 
 #endif /* filesys/directory.h */
