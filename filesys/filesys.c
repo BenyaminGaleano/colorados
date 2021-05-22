@@ -106,8 +106,26 @@ do_format (void)
 
 
 bool
-filesys_mkdir(const char *name)
+filesys_mkdir(const char *path)
 {
-    return true;
+    block_sector_t inode_sector = 0;
+    bool isfit;
+    char target[NAME_MAX + 1];
+    struct dir *dir = dir_navigate (path, false, false, &isfit, target);
+
+    if (dir == NULL || isfit) {
+        dir_close(dir);
+        return false;
+    }
+
+    bool success = (free_map_allocate (1, &inode_sector)
+                    && dir_create(inode_sector, 16)
+                    && dir_add_subdir (dir, target, inode_sector));
+
+    if (!success && inode_sector != 0)
+        free_map_release (inode_sector, 1);
+    dir_close (dir);
+
+    return success;
 }
 
