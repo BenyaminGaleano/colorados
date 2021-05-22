@@ -7,6 +7,7 @@
 #include "filesys/inode.h"
 #include "filesys/directory.h"
 #include "filesys/cache.h"
+#include "threads/malloc.h"
 
 /* Partition that contains the file system. */
 struct block *fs_device;
@@ -109,16 +110,33 @@ bool
 filesys_mkdir(const char *path)
 {
     block_sector_t inode_sector = 0;
-    bool isfit;
     char target[NAME_MAX + 1];
-    struct dir *dir = dir_navigate (path, false, false, &isfit, target);
+    char *dirpath;
+    struct dir *dir;
+    struct dir *parent;
+    bool success = false;
 
-    if (dir == NULL || isfit) {
-        dir_close(dir);
-        return false;
+    if (path == NULL || *path == '\0') {
+        goto done;
     }
 
-    bool success = (free_map_allocate (1, &inode_sector)
+    dirpath = malloc(strlen(path) + 1);
+
+    dirname(path, dirpath, target);
+
+    dir = dir_navigate (dirpath, false);
+
+    if (dir == NULL || dir_lookup(dir, target, NULL)) {
+        dir_close(dir);
+        goto done;
+    }
+
+    if (strcmp(target, ".") == 0 || strcmp(target, "..") == 0) {
+        dir_close(dir);
+        goto done;
+    }
+
+    success = (free_map_allocate (1, &inode_sector)
                     && dir_create(inode_sector, 16)
                     && dir_add_subdir (dir, target, inode_sector));
 
@@ -126,12 +144,15 @@ filesys_mkdir(const char *path)
         free_map_release (inode_sector, 1);
     dir_close (dir);
 
-    if (success) {
-        ASSERT((dir = dir_navigate(path, false, true, NULL, NULL)));
-        ASSERT(dir_add_subdir (dir, ".", dir_get_inumber(dir)));
-        // TODO parent ..
-        dir_close (dir);
-    }
+    ASSERT(success);
+
+    ASSERT((dir = dir_navigate(path, false)) != NULL);
+    ASSERT((parent = dir_navigate(dirpath, false)) != NULL);
+    ASSERT(dir_add_subdir (dir, ".", dir_get_inumber(dir)));
+    ASSERT(dir_add_subdir (dir, "..", dir_get_inumber(parent)));
+    dir_close (dir);
+done:
+    free(dirpath);
 
     return success;
 }

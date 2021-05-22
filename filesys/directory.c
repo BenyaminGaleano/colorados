@@ -141,6 +141,7 @@ dir_get_inumber(struct dir *dir)
     return inode_get_inumber(dir_get_inode(dir));
 }
 
+
 /* @colorados */
 
 static bool
@@ -205,18 +206,18 @@ dir_add_subdir(struct dir *dir, const char *name, block_sector_t inode_sector)
 
 
 struct dir *
-dir_navigate(const char *name_, bool cd, bool exact, bool *fit, char *last)
+dir_navigate(const char *name_, bool cd)
 {
     char *name;
     struct dir *curr;
 
     ASSERT(name_ != NULL);
 
-    if (*name_ == '\0' || strlen (name_) > NAME_MAX)
+    if (*name_ == '\0')
         goto done;
     
     name = malloc(strlen(name_) + 1);
-    strlcpy(name, name_, NAME_MAX + 1);
+    strlcpy(name, name_, strlen(name_));
 
     struct dir_entry entry;
     char *save_ptr;
@@ -232,43 +233,20 @@ dir_navigate(const char *name_, bool cd, bool exact, bool *fit, char *last)
 
     ASSERT(curr != NULL);
 
-    if (fit != NULL) {
-        *fit = true;
-    }
-
     if (token == NULL) {
         goto done;
     }
 
     do {
-        if (last != NULL) {
-            strlcpy(last, token, NAME_MAX + 1);
-        }
-
-        if (!lookup(curr, token, &entry, NULL)) {
-            token = strtok_r(NULL, "/", &save_ptr);
-            if (token != NULL || exact) {
-                dir_close(curr);
-                curr = NULL;
-            }
-            if (fit != NULL) {
-                *fit = false;
-            }
-            goto done;
-        } else if (!entry.isdir) {
-            token = strtok_r(NULL, "/", &save_ptr);
-            if (token != NULL || exact) {
-                dir_close(curr);
-                curr = NULL;
-            }
-            if (fit != NULL) {
-                *fit = false;
-            }
+        if (!lookup(curr, token, &entry, NULL) || !entry.isdir) {
+            dir_close(curr);
+            curr = NULL;
             goto done;
         }
 
         dir_close(curr);
         curr = dir_open(inode_open(entry.inode_sector));
+        ASSERT(curr != NULL);
 
     } while ((token = strtok_r(NULL, "/", &save_ptr)) != NULL);
 
@@ -281,6 +259,65 @@ done:
     }
 
     return curr;
+}
+
+
+void
+dirname(const char *path, char *dir, char *name)
+{
+    char *save_ptr;
+    char *token;
+    char *stop;
+    char *workspace = malloc(strlen(path) + 1);
+
+    if (strlen(path) > 0) {
+        memcpy(workspace, path, strlen(path) + 1);
+        token = strtok_r(workspace, "/", &save_ptr);
+    } else {
+        token = NULL;
+    }
+
+    stop = token;
+
+    while (token !=  NULL) {
+        stop = token;
+        token = strtok_r(NULL, "/", &save_ptr);
+    }
+
+    if (stop == NULL) {
+        *dir = '\0';
+        *name = '\0';
+        goto done;
+    } else if (workspace == stop) {
+        *dir = '\0';
+        memcpy(name, stop, strlen(stop) + 1);
+        goto done;
+    }
+
+    char *iter = workspace;
+    while (*iter == '/') {
+        *iter = '\0';
+        iter++;
+    }
+
+    iter = workspace;
+    while (iter < stop - 1) {
+        if (*iter == '\0') {
+            *iter = '/';
+        }
+        iter++;
+    }
+
+    if (*workspace == '\0') {
+        memcpy(dir, "/", 2);
+    } else {
+        memcpy(dir, workspace, strlen(workspace) + 1);
+    }
+
+    memcpy(name, stop, strlen(stop) + 1);
+
+done:
+    free(workspace);
 }
 
 /* @colorados */
