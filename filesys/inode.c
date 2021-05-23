@@ -249,7 +249,7 @@ free_sectors(struct inode_disk *idisk, unsigned index_from)
 
     int count = bytes_to_sectors(idisk->length) - bytes_to_sectors(index_from) - 1;
 
-    count--;
+    /* count--; */
     
     block_sector_t sector;
     block_sector_t saux;
@@ -309,14 +309,11 @@ expand_size(struct inode_disk *idisk, off_t pos)
     }
 
     int count;
-    int index = idisk->length / BLOCK_SECTOR_SIZE;
+    /* int index = idisk->length / BLOCK_SECTOR_SIZE; */
+    int index = bytes_to_sectors(idisk->length);
     int sindex;
     block_sector_t sector;
     count = bytes_to_sectors(pos) - index;
-
-    if (idisk->length == 0) {
-        index = -1;
-    }
 
     if (count == 0) {
         idisk->length = pos + 1;
@@ -324,7 +321,6 @@ expand_size(struct inode_disk *idisk, off_t pos)
     }
 
     // grow content size
-    index++;
 
     sindex = index;
 
@@ -712,6 +708,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       offset += chunk_size;
       bytes_written += chunk_size;
     }
+
   free (bounce);
 
   return bytes_written;

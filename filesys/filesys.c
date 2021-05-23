@@ -106,9 +106,15 @@ filesys_openi (const char *path, bool *isdir)
     workspace = calloc(1, strlen(path) + 1);
     dirname(path, workspace, dirpath, name);
 
+
     dir = dir_navigate(dirpath, workspace, false);
 
     if (dir != NULL) {
+        if (*name == '\0') {
+            inode = dir_get_inode(dir);
+            *isdir = true;
+            goto done;
+        }
         dir_lookup_and_check (dir, name, &inode, isdir);
     }
 

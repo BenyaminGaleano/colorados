@@ -155,6 +155,7 @@ syscall_handler (struct intr_frame *f)
     lock_acquire(&filesys_lock);
     f->eax = write(stkcast(st + 4, uint32_t), stkcast(st + 8, void *), stkcast(st + 12, size_t));
     lock_release(&filesys_lock);
+
     break;
   case SYS_SEEK:
     checkbytes(st, 12);
@@ -176,7 +177,7 @@ syscall_handler (struct intr_frame *f)
     break;
 #ifdef VM
   case SYS_MMAP:
-    checkbytes(st, 16);
+    checkbytes(st, 12);
     f->eax = sys_mmap(stkcast(st + 4, int), stkcast(st + 8, void *));
     break;
   case SYS_MUNMAP:
@@ -198,12 +199,16 @@ syscall_handler (struct intr_frame *f)
     lock_release(&filesys_lock);
     break;
   case SYS_READDIR:
-    printf ("readdir!\n");
-    thread_exit ();
+    checkbytes(st, 12);
+    lock_acquire(&filesys_lock);
+    f->eax = sys_readdir(stkcast(st +  4, fd_t), stkcast(st + 8, char *));
+    lock_release(&filesys_lock);
     break;
   case SYS_ISDIR:
     checkbytes(st, 8);
+    lock_acquire(&filesys_lock);
     f->eax = sys_isdir(stkcast(st +  4, fd_t));
+    lock_release(&filesys_lock);
     break;
   case SYS_INUMBER:
     checkbytes(st, 8);
@@ -217,6 +222,36 @@ syscall_handler (struct intr_frame *f)
     thread_exit ();
     break;
   }
+}
+
+
+
+bool
+sys_readdir(fd_t des, char *name)
+{
+    void *target = NULL;
+    struct thread *t = thread_current();
+
+    if (name == NULL || name > PHYS_BASE) {
+        exit(-1);
+    }
+    for (unsigned int i = 0; i <= NAME_MAX; i++)
+    {
+        if(get_user(name+i)==-1||put_user(name+i,0)==false){
+        exit(-1);
+        }
+    }
+
+    if (t->files == NULL || !des.descriptor.is_fd || des.descriptor.padding != 0 ||
+        (target = stkcast(t->files + des.descriptor.index * 4, void *)) == NULL) {
+        exit(-1);
+    }
+
+    if (!des.descriptor.isdir) {
+        return false;
+    }
+
+    return dir_readdir(target, name);
 }
 
 
@@ -304,7 +339,7 @@ int stdin_and_check(int fd, void *buffer, unsigned length)
   }
   for (unsigned int i = 0; i < length; i++)
   {
-    if(get_user(buffer+1)==-1||put_user(buffer+1,0)==false){
+    if(get_user(buffer+i)==-1||put_user(buffer+i,0)==false){
       exit(-1);
     }
   }
@@ -444,6 +479,7 @@ bool remove (const char *file)
 
 int open (const char *file)
 {
+
   void *file_open;
   struct thread *t = thread_current();
   bool isdir;
@@ -454,8 +490,13 @@ int open (const char *file)
 
   if(file_open != NULL && t->files != NULL)
   {
+
      if (t->afid > 1023) {
-      file_close(file_open);
+      if (isdir) {
+        dir_close(file_open);
+      } else {
+        file_close(file_open);
+      }
       exit(-1);
     }
     
@@ -477,8 +518,7 @@ int filesize (int fd)
   ffd.value = fd;
   unsigned i = ffd.descriptor.index;
 
-  if (t->files == NULL || !ffd.descriptor.is_fd || ffd.descriptor.padding != 0
-          || ffd.descriptor.isdir) {
+  if (t->files == NULL || !ffd.descriptor.is_fd || ffd.descriptor.padding != 0) {
     exit(-1);
   }
 
@@ -491,7 +531,7 @@ int read (int fd, void *buffer, unsigned length)
   struct thread *t = thread_current();
   unsigned i = ((fd_t) fd).descriptor.index;
 
-  if (t->files == NULL || i > 1023 || ((fd_t) fd).descriptor.isdir) {
+  if (t->files == NULL || i > 1023) {
     return 0;
   }
 
@@ -516,7 +556,7 @@ int write (int fd, const void *buffer, unsigned length)
       || fdes.descriptor.isdir) {
     exit(-1);
   }
-  
+
   off_t written = file_write(f, buffer, length);
   return written;
 }
