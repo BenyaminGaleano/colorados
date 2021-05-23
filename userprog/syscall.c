@@ -497,9 +497,9 @@ int open (const char *file)
       } else {
         file_close(file_open);
       }
-      exit(-1);
+      PANIC("valieron los file descriptors!!\n");
     }
-    
+
     fd.value = 0;
     fd.descriptor.isdir = isdir;
     t->dirs[t->afid] = isdir;
