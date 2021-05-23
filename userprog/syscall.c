@@ -502,6 +502,7 @@ int open (const char *file)
     
     fd.value = 0;
     fd.descriptor.isdir = isdir;
+    t->dirs[t->afid] = isdir;
     fd.descriptor.is_fd = 1;
     fd.descriptor.index = t->afid++;
     stkcast(t->files + fd.descriptor.index*4, void *) = file_open;
@@ -552,9 +553,12 @@ int write (int fd, const void *buffer, unsigned length)
   struct file *f;
 
   if (t->files == NULL || !fdes.descriptor.is_fd || fdes.descriptor.padding != 0 ||
-      (f = stkcast(t->files + fdes.descriptor.index * 4, struct file*)) == NULL
-      || fdes.descriptor.isdir) {
+      (f = stkcast(t->files + fdes.descriptor.index * 4, struct file*)) == NULL) {
     exit(-1);
+  }
+
+  if (fdes.descriptor.isdir) {
+      return -1;
   }
 
   off_t written = file_write(f, buffer, length);

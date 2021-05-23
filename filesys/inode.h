@@ -22,4 +22,8 @@ void inode_allow_write (struct inode *);
 off_t inode_length (const struct inode *);
 block_sector_t index_to_sector (const struct inode_disk *idisk, unsigned index, block_sector_t *next);
 
+/* @colorados */
+int inode_open_cnt(struct inode *);
+/* @colorados */
+
 #endif /* filesys/inode.h */

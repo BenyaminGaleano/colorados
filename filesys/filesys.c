@@ -172,7 +172,7 @@ filesys_remove (const char *path)
         goto done;
     }
     
-    success = dir != NULL && dir_remove (dir, path);
+    success = dir != NULL && dir_remove (dir, name);
 
 done:
     free(dirpath);
@@ -246,6 +246,7 @@ filesys_mkdir(const char *path)
     ASSERT(dir_add_subdir (dir, ".", dir_get_inumber(dir)));
     ASSERT(dir_add_subdir (dir, "..", dir_get_inumber(parent)));
     dir_close (dir);
+    dir_close (parent);
 done:
     free(dirpath);
     free(workspace);

@@ -245,8 +245,12 @@ process_exit (void)
 
   if (cur->files != NULL)
     for (unsigned int i = 0; i < cur->afid + 1; i++) {
-      if (stkcast(cur->files + i*4, struct file *) != NULL) {
-        file_close(stkcast(cur->files + i * 4, struct file *));
+      if (stkcast(cur->files + i*4, void *) != NULL) {
+          if (cur->dirs[i]) {
+            dir_close(stkcast(cur->files + i * 4, struct dir *));
+          } else {
+            file_close(stkcast(cur->files + i * 4, struct file *));
+          }
       }
     }
 

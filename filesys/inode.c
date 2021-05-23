@@ -245,6 +245,11 @@ static void
 free_sectors(struct inode_disk *idisk, unsigned index_from)
 {
     ASSERT(idisk != NULL);
+
+    if ( idisk->length == 0 && index_from == 0 ) {
+        return;
+    }
+
     ASSERT(bytes_to_sectors(idisk->length) > index_from)
 
     int count = bytes_to_sectors(idisk->length) - bytes_to_sectors(index_from) - 1;
@@ -296,6 +301,14 @@ free_sectors(struct inode_disk *idisk, unsigned index_from)
             }
         }
     }
+}
+
+
+
+int 
+inode_open_cnt(struct inode *inode)
+{
+    return inode->open_cnt;
 }
 
 

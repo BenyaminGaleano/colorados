@@ -122,7 +122,8 @@ struct thread
 
      /* FILESYS */
     struct dir *current_dir;              /* mark the current directory for thread */
-    
+    bool dirs[1024]; 
+
     /* OS */
 
     /* Shared between thread.c and synch.c. */

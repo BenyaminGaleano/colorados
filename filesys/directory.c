@@ -5,6 +5,7 @@
 #include "filesys/filesys.h"
 #include "filesys/inode.h"
 #include "threads/malloc.h"
+#include "threads/palloc.h"
 #include "threads/thread.h"
 
 /* A directory. */
@@ -378,6 +379,7 @@ dir_remove (struct dir *dir, const char *name)
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
 
+
   /* Find directory entry. */
   if (!lookup (dir, name, &e, &ofs))
     goto done;
@@ -389,6 +391,7 @@ dir_remove (struct dir *dir, const char *name)
             continue;
         }
         emptydir = false;
+        break;
     }
     dir_close(checkdir);
     if (!emptydir) {
@@ -401,6 +404,12 @@ dir_remove (struct dir *dir, const char *name)
   inode = inode_open (e.inode_sector);
   if (inode == NULL)
     goto done;
+
+  struct thread *t = thread_current();
+
+  if (e.isdir && inode_open_cnt(inode) > 1) {
+    goto done;
+  }
 
   /* Erase directory entry. */
   e.in_use = false;
