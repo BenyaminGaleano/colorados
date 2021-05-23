@@ -371,6 +371,9 @@ dir_remove (struct dir *dir, const char *name)
   struct inode *inode = NULL;
   bool success = false;
   off_t ofs;
+  struct dir *checkdir = NULL;
+  char checkname[NAME_MAX + 1];
+  bool emptydir = true;
 
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
@@ -378,6 +381,21 @@ dir_remove (struct dir *dir, const char *name)
   /* Find directory entry. */
   if (!lookup (dir, name, &e, &ofs))
     goto done;
+
+  if (e.isdir) {
+    checkdir = dir_open(inode_open(e.inode_sector));
+    while (dir_readdir(checkdir, checkname)) {
+        if (strcmp(".", checkname) == 0 || strcmp("..", checkname) == 0) {
+            continue;
+        }
+        emptydir = false;
+    }
+    dir_close(checkdir);
+    if (!emptydir) {
+        goto done;
+    }
+  }
+
 
   /* Open inode. */
   inode = inode_open (e.inode_sector);

@@ -207,11 +207,15 @@ filesys_mkdir(const char *path)
     dirpath = calloc(1, strlen(path) + 1);
     workspace = calloc(1, strlen(path) + 1);
 
-    dirname(path, workspace, dirpath, target);
+    if (!dirname(path, workspace, dirpath, target)) {
+        goto done;
+    }
 
     dir = dir_navigate (dirpath, workspace, false);
 
-    if (dir == NULL || dir_lookup(dir, target, NULL)) {
+    struct inode *ignore;
+
+    if (dir == NULL || dir_lookup(dir, target, &ignore)) {
         dir_close(dir);
         goto done;
     }

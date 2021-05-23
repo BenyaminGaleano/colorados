@@ -166,3 +166,10 @@ file_tell (struct file *file)
   ASSERT (file != NULL);
   return file->pos;
 }
+
+
+/* @colorados */
+block_sector_t file_get_inumber(struct file *file) {
+    return inode_get_inumber(file_get_inode(file));
+}
+/* @colorados */
