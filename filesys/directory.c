@@ -5,7 +5,6 @@
 #include "filesys/filesys.h"
 #include "filesys/inode.h"
 #include "threads/malloc.h"
-#include "threads/palloc.h"
 #include "threads/thread.h"
 
 /* A directory. */
@@ -37,6 +36,7 @@ dir_create (block_sector_t sector, size_t entry_cnt)
 struct dir *
 dir_open (struct inode *inode) 
 {
+  /* struct dir *dir = calloc (1, sizeof *dir); */
   struct dir *dir = calloc (1, sizeof *dir);
   if (inode != NULL && dir != NULL)
     {
@@ -144,7 +144,6 @@ dir_get_inumber(struct dir *dir)
 
 
 /* @colorados */
-
 static bool
 dir_add_entry (struct dir *dir, const char *name, block_sector_t inode_sector, bool isdir)
 {
@@ -187,6 +186,25 @@ dir_add_entry (struct dir *dir, const char *name, block_sector_t inode_sector, b
 }
 
 
+bool
+dir_lookup_and_check (const struct dir *dir, const char *name,
+            struct inode **inode, bool *isdir) 
+{
+  struct dir_entry e;
+
+  ASSERT (dir != NULL);
+  ASSERT (name != NULL);
+
+  if (lookup (dir, name, &e, NULL)) {
+    *isdir = e.isdir;
+    *inode = inode_open (e.inode_sector);
+  } else
+    *inode = NULL;
+
+  return *inode != NULL;
+}
+
+
 /* Adds a file named NAME to DIR, which must not already contain a
    file by that name.  The file's inode is in sector
    INODE_SECTOR.
@@ -207,10 +225,9 @@ dir_add_subdir(struct dir *dir, const char *name, block_sector_t inode_sector)
 
 
 struct dir *
-dir_navigate(const char *name_, bool cd)
+dir_navigate(const char *name_, char *workspace, bool cd)
 {
-    char *name = NULL;
-    struct dir *curr;
+    struct dir *curr = NULL;
 
     ASSERT(name_ != NULL);
 
@@ -229,12 +246,11 @@ dir_navigate(const char *name_, bool cd)
     if (*name_ == '\0')
         goto done;
 
-    name = palloc_get_page(0);
-    memcpy(name, name_, strlen(name_) + 1);
+    memcpy(workspace, name_, strlen(name_) + 1);
 
     struct dir_entry entry;
-    char *save_ptr;
-    char *token = strtok_r(name, "/", &save_ptr);
+    char *save_ptr = NULL;
+    char *token = strtok_r(workspace, "/", &save_ptr);
 
     ASSERT(curr != NULL);
 
@@ -256,7 +272,6 @@ dir_navigate(const char *name_, bool cd)
     } while ((token = strtok_r(NULL, "/", &save_ptr)) != NULL);
 
 done:
-    palloc_free_page(name);
 
     if (curr != NULL && cd) {
         dir_close(t->current_dir);
@@ -268,13 +283,17 @@ done:
 
 
 bool
-dirname(const char *path, char *dir, char *name)
+dirname(const char *path, char *workspace, char *dir, char *name)
 {
-    char *save_ptr;
-    char *token;
-    char *stop;
-    char *workspace = palloc_get_page(0);
+    char *save_ptr = NULL;
+    char *token = NULL;
+    char *stop = NULL;
     bool success = true;
+
+    if (path == NULL) {
+        success = false;
+        goto done;
+    }
 
     if (strlen(path) > 0) {
         memcpy(workspace, path, strlen(path) + 1);
@@ -336,8 +355,6 @@ dirname(const char *path, char *dir, char *name)
     memcpy(name, stop, strlen(stop) + 1);
 
 done:
-    /* free(workspace); */
-    palloc_free_page(workspace);
     return success;
 }
 

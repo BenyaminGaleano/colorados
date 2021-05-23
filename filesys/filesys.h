@@ -19,6 +19,7 @@ bool filesys_remove (const char *name);
 
 /* @colorados */
 bool filesys_mkdir (const char *path);
+void *filesys_openi (const char *path, bool *isdir); // open "Improved"
 /* @colorados */
 
 #endif /* filesys/filesys.h */

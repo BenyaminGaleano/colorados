@@ -7,7 +7,7 @@
 #include "filesys/inode.h"
 #include "filesys/directory.h"
 #include "filesys/cache.h"
-#include "threads/palloc.h"
+#include "threads/malloc.h"
 
 /* Partition that contains the file system. */
 struct block *fs_device;
@@ -52,19 +52,22 @@ filesys_create (const char *path, off_t initial_size)
 
     char name[NAME_MAX + 1];
     char *dirpath = NULL;
-    struct dir *dir;
+    char *workspace = NULL;
+    struct dir *dir = NULL;
     bool success = false;
 
     if (path == NULL || *path == '\0') {
         goto done;
     }
 
-    dirpath = palloc_get_page(0);
-    if (!dirname(path, dirpath, name)) {
+    dirpath = calloc(1, strlen(path) + 1);
+    workspace = calloc(1, strlen(path) + 1);
+
+    if (!dirname(path, workspace, dirpath, name)) {
         goto done;
     }
 
-    dir = dir_navigate(dirpath, false);
+    dir = dir_navigate(dirpath, workspace, false);
 
     /* struct dir *dir = dir_open_root (); */
     /* dir_close (dir); */
@@ -77,10 +80,48 @@ filesys_create (const char *path, off_t initial_size)
         free_map_release (inode_sector, 1);
 
 done:
-    palloc_free_page(dirpath);
+    free(dirpath);
+    free(workspace);
     dir_close (dir);
 
     return success;
+}
+
+
+void *
+filesys_openi (const char *path, bool *isdir)
+{
+    struct inode *inode = NULL;
+    char name[NAME_MAX + 1];
+    char *dirpath = NULL;
+    char *workspace = NULL;
+    struct dir *dir = NULL;
+    bool success = false;
+
+    if (path == NULL || *path == '\0') {
+        goto done;
+    }
+
+    dirpath = calloc(1, strlen(path) + 1);
+    workspace = calloc(1, strlen(path) + 1);
+    dirname(path, workspace, dirpath, name);
+
+    dir = dir_navigate(dirpath, workspace, false);
+
+    if (dir != NULL) {
+        dir_lookup_and_check (dir, name, &inode, isdir);
+    }
+
+done:
+    free(dirpath);
+    free(workspace);
+    dir_close (dir);
+
+    if (*isdir) {
+        return dir_open (inode);
+    }
+
+    return file_open (inode);
 }
 
 /* Opens the file with the given NAME.
@@ -91,30 +132,11 @@ done:
 struct file *
 filesys_open (const char *path)
 {
-    /* struct dir *dir = dir_open_root (); */
-    struct inode *inode = NULL;
-    char name[NAME_MAX + 1];
-    char *dirpath = NULL;
-    struct dir *dir;
-    bool success = false;
-
-    if (path == NULL || *path == '\0') {
-        goto done;
-    }
-
-    dirpath = palloc_get_page(0);
-    dirname(path, dirpath, name);
-
-    dir = dir_navigate(dirpath, false);
-
-    if (dir != NULL)
-        dir_lookup (dir, name, &inode);
-
-done:
-    dir_close (dir);
-    palloc_free_page(dirpath);
-
-    return file_open (inode);
+    struct file *file;
+    bool isdir = false;
+    file = filesys_openi(path, &isdir);
+    ASSERT(file == NULL || !isdir);
+    return file;
 }
 
 /* Deletes the file named NAME.
@@ -126,17 +148,19 @@ filesys_remove (const char *path)
 {
     char name[NAME_MAX + 1];
     char *dirpath = NULL;
-    struct dir *dir;
+    char *workspace = NULL;
+    struct dir *dir = NULL;
     bool success = false;
 
     if (path == NULL || *path == '\0') {
         goto done;
     }
 
-    dirpath = palloc_get_page(0);
-    dirname(path, dirpath, name);
+    dirpath = calloc(1, strlen(path) + 1);
+    workspace = calloc(1, strlen(path) + 1);
+    dirname(path, workspace, dirpath, name);
 
-    dir = dir_navigate(dirpath, false);
+    dir = dir_navigate(dirpath, workspace, false);
 
     if (dir == NULL) {
         goto done;
@@ -145,8 +169,9 @@ filesys_remove (const char *path)
     success = dir != NULL && dir_remove (dir, path);
 
 done:
+    free(dirpath);
+    free(workspace);
     dir_close (dir);
-    palloc_free_page(dirpath);
 
   return success;
 }
@@ -170,19 +195,21 @@ filesys_mkdir(const char *path)
     block_sector_t inode_sector = 0;
     char target[NAME_MAX + 1];
     char *dirpath = NULL;
-    struct dir *dir;
-    struct dir *parent;
+    char *workspace = NULL;
+    struct dir *dir = NULL;
+    struct dir *parent = NULL;
     bool success = false;
 
     if (path == NULL || *path == '\0') {
         goto done;
     }
 
-    dirpath = palloc_get_page(0);
+    dirpath = calloc(1, strlen(path) + 1);
+    workspace = calloc(1, strlen(path) + 1);
 
-    dirname(path, dirpath, target);
+    dirname(path, workspace, dirpath, target);
 
-    dir = dir_navigate (dirpath, false);
+    dir = dir_navigate (dirpath, workspace, false);
 
     if (dir == NULL || dir_lookup(dir, target, NULL)) {
         dir_close(dir);
@@ -204,13 +231,14 @@ filesys_mkdir(const char *path)
 
     ASSERT(success);
 
-    ASSERT((dir = dir_navigate(path, false)) != NULL);
-    ASSERT((parent = dir_navigate(dirpath, false)) != NULL);
+    ASSERT((dir = dir_navigate(path, workspace, false)) != NULL);
+    ASSERT((parent = dir_navigate(dirpath, workspace, false)) != NULL);
     ASSERT(dir_add_subdir (dir, ".", dir_get_inumber(dir)));
     ASSERT(dir_add_subdir (dir, "..", dir_get_inumber(parent)));
     dir_close (dir);
 done:
-    palloc_free_page(dirpath);
+    free(dirpath);
+    free(workspace);
 
     return success;
 }

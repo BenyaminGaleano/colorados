@@ -27,7 +27,8 @@ typedef union {
     uint8_t magic : 1; // ignore 0 or 1 because they're reserved
     uint8_t is_fd : 1;
     uint32_t index : 10;
-    int padding: 20;
+    uint8_t isdir : 1;
+    int padding: 19;
   } descriptor;
 
   int value;
@@ -344,11 +345,11 @@ bool remove (const char *file)
 
 int open (const char *file)
 {
-  struct file *file_open;
+  void *file_open;
   struct thread *t = thread_current();
   fd_t fd;
   fd.value = -1;
-  
+
   file_open = filesys_open(file);
 
   if(file_open != NULL && t->files != NULL)
@@ -357,8 +358,9 @@ int open (const char *file)
       file_close(file_open);
       exit(-1);
     }
-
+    
     fd.value = 0;
+    fd.descriptor.isdir = isdir;
     fd.descriptor.is_fd = 1;
     fd.descriptor.index = t->afid++;
     stkcast(t->files + fd.descriptor.index*4, void *) = file_open;
