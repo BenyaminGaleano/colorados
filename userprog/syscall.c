@@ -689,7 +689,7 @@ sys_mfdestroy(struct mfile *mf)
 int 
 sys_mmap(int fd, void *addr)
 {
-  int size = filesize(fd);
+  int size = sys_filesize((fd_t) fd);
   struct thread *t = thread_current();
   struct mfile *mf;
   struct file *f = stkcast(t->files + ((fd_t) fd).descriptor.index * 4, struct file *);
