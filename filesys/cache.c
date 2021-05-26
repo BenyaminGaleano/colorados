@@ -270,6 +270,7 @@ buffer_cache_connect(block_sector_t sector)
     locate_block(sector, &block);
     ASSERT(block != NULL);
     cache_read_start(block);
+    block->dirty = true;
     return block->data;
 }
 
