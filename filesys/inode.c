@@ -661,7 +661,8 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   struct inode_disk *idisk = buffer_cache_connect(inode->sector);
     
   if (offset + size - 1 > idisk->length) {
-      ASSERT(expand_size(idisk, offset + size - 1));
+      /* ASSERT(); */
+     expand_size(idisk, offset + size - 1);
   }
 
   buffer_cache_logout(inode->sector);

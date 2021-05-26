@@ -25,23 +25,36 @@ static void syscall_handler (struct intr_frame *);
 typedef union {
   struct {
     uint8_t magic : 1; // ignore 0 or 1 because they're reserved
-    uint8_t is_fd : 1;
-    uint32_t index : 10;
     uint8_t isdir : 1;
-    int padding: 19;
+    uint32_t index : 9;
+    uint32_t round: 21;
   } descriptor;
 
   int value;
 } fd_t;
+
 void checkbytes(void *, int);
 int stdout_and_check(int fd, const void *buffer, unsigned length);
 int stdin_and_check(int fd, void *buffer, unsigned length);
 void check_file(char *file);
+
+int sys_filesize (fd_t des);
+int sys_read (fd_t des, void *buffer, unsigned length);
+int sys_write (fd_t des, const void *buffer, unsigned length);
+void sys_seek (fd_t des, unsigned position);
+unsigned sys_tell (fd_t des);
+void sys_close (fd_t des);
+
 block_sector_t sys_inumber(fd_t fd);
 bool sys_isdir(fd_t fd);
 bool sys_mkdir(const char *dir);
 bool sys_chdir(const char *dir);
 bool sys_readdir(fd_t fd, char *name);
+
+
+void *get_file(void **space, fd_t descriptor);
+void allocate_file(void **space, fd_t *descriptor, void *file);
+
 
 struct lock filesys_lock;
 
@@ -129,7 +142,7 @@ syscall_handler (struct intr_frame *f)
   case SYS_FILESIZE:
     checkbytes(st, 8);
     lock_acquire(&filesys_lock);
-    f->eax = filesize(stkcast(st +  4, int));
+    f->eax = sys_filesize(stkcast(st +  4, fd_t));
     lock_release(&filesys_lock);
     break;
   case SYS_READ:
@@ -141,7 +154,7 @@ syscall_handler (struct intr_frame *f)
     }
 
     lock_acquire(&filesys_lock);
-    f->eax = read(stkcast(st + 4, int), stkcast(st + 8, void *), stkcast(st + 12, unsigned));
+    f->eax = sys_read(stkcast(st + 4, fd_t), stkcast(st + 8, void *), stkcast(st + 12, unsigned));
     lock_release(&filesys_lock);
     break;
   case SYS_WRITE:
@@ -153,26 +166,26 @@ syscall_handler (struct intr_frame *f)
     }
 
     lock_acquire(&filesys_lock);
-    f->eax = write(stkcast(st + 4, uint32_t), stkcast(st + 8, void *), stkcast(st + 12, size_t));
+    f->eax = sys_write(stkcast(st + 4, fd_t), stkcast(st + 8, void *), stkcast(st + 12, size_t));
     lock_release(&filesys_lock);
 
     break;
   case SYS_SEEK:
     checkbytes(st, 12);
     lock_acquire(&filesys_lock);
-    seek(stkcast(st + 4, int), stkcast(st + 8, unsigned));
+    sys_seek(stkcast(st + 4, fd_t), stkcast(st + 8, unsigned));
     lock_release(&filesys_lock);
     break;
   case SYS_TELL:
     checkbytes(st, 8);
     lock_acquire(&filesys_lock);
-    f->eax = tell(stkcast(st + 4, int));
+    f->eax = sys_tell(stkcast(st + 4, fd_t));
     lock_release(&filesys_lock);
     break;
   case SYS_CLOSE:
     checkbytes(st, 8);
     lock_acquire(&filesys_lock);
-    close(stkcast(st + 4, int));
+    sys_close(stkcast(st + 4, fd_t));
     lock_release(&filesys_lock);
     break;
 #ifdef VM
@@ -225,6 +238,52 @@ syscall_handler (struct intr_frame *f)
 }
 
 
+// check in space for a file described for file descriptor, if not exists any file
+// return a NULL pointer.
+void *get_file(void **space, fd_t descriptor) {
+    ASSERT(space != NULL);
+
+    if (descriptor.descriptor.magic != 0) {
+        return NULL;
+    }
+
+    void *target = NULL;
+    uint32_t round = 0;
+
+    target = space[descriptor.descriptor.index];
+    round = space[1023 - descriptor.descriptor.index];
+
+    if (target == NULL || round == 0 || round != descriptor.descriptor.round) {
+        return NULL;
+    }
+
+    return target;
+}
+
+
+// try to allocate a file into space, if the operation fails kernel panic.
+// Modify round and index in file descriptor.
+void allocate_file(void **space, fd_t *descriptor, void *file) {
+    ASSERT(space != NULL);
+    ASSERT(descriptor != NULL);
+    ASSERT(file != NULL);
+
+    for (int i = 0; i <= 512; i++) {
+        if (i == 512) {
+            PANIC("\033[31m(colorados) máximo de archivos abiertos alcanzados\033[0m");
+        }
+
+        if (space[i] == NULL) {
+            space[i] = file;
+            thread_current()->dirs[i] = descriptor->descriptor.isdir;
+            descriptor->descriptor.index = i;
+            space[1023 - i] = ((uint32_t) space[1023 - i]) + 1;
+            descriptor->descriptor.round = (uint32_t) space[1023 - i];
+            break;
+        }
+    }
+}
+
 
 bool
 sys_readdir(fd_t des, char *name)
@@ -242,8 +301,7 @@ sys_readdir(fd_t des, char *name)
         }
     }
 
-    if (t->files == NULL || !des.descriptor.is_fd || des.descriptor.padding != 0 ||
-        (target = stkcast(t->files + des.descriptor.index * 4, void *)) == NULL) {
+    if (t->files == NULL || (target = get_file(t->files, des)) == NULL) {
         exit(-1);
     }
 
@@ -255,14 +313,14 @@ sys_readdir(fd_t des, char *name)
 }
 
 
-bool 
+bool
 sys_mkdir(const char *dir)
 {
     return filesys_mkdir(dir);
 }
 
 
-bool 
+bool
 sys_chdir(const char *dir)
 {
     struct dir *target;
@@ -287,8 +345,7 @@ sys_inumber (fd_t des)
     void *target = NULL;
     struct thread *t = thread_current();
 
-    if (t->files == NULL || !des.descriptor.is_fd || des.descriptor.padding != 0 ||
-        (target = stkcast(t->files + des.descriptor.index * 4, void *)) == NULL) {
+    if (t->files == NULL || (target = get_file(t->files, des)) == NULL) {
         exit(-1);
     }
 
@@ -307,8 +364,7 @@ sys_isdir (fd_t des)
     void *target = NULL;
     struct thread *t = thread_current();
 
-    if (t->files == NULL || !des.descriptor.is_fd || des.descriptor.padding != 0 ||
-        (target = stkcast(t->files + des.descriptor.index * 4, void *)) == NULL) {
+    if (t->files == NULL || (target = get_file(t->files, des)) == NULL) {
         exit(-1);
     }
 
@@ -332,6 +388,7 @@ void check_file(char *file)
   }
 }
 
+
 int stdin_and_check(int fd, void *buffer, unsigned length)
 {
   if (buffer == NULL || buffer > PHYS_BASE) {
@@ -343,7 +400,7 @@ int stdin_and_check(int fd, void *buffer, unsigned length)
       exit(-1);
     }
   }
-  
+
   if (fd == 0) {
     for (unsigned int i = 0; i < length; i++) {
       if (put_user(buffer + i, input_getc()) == false) {
@@ -360,6 +417,7 @@ int stdin_and_check(int fd, void *buffer, unsigned length)
 
   return -1;
 }
+
 
 int stdout_and_check(int fd, const void *buffer, unsigned length)
 {
@@ -381,6 +439,7 @@ int stdout_and_check(int fd, const void *buffer, unsigned length)
   return -1;
 }
 
+
 void checkbytes(void *mem, int bytes_to_check)
 {
   for (int i = 0; i < bytes_to_check; i++) {
@@ -390,10 +449,12 @@ void checkbytes(void *mem, int bytes_to_check)
   }
 }
 
+
 void halt(void)
 {
   shutdown_power_off();
 }
+
 
 void exit(int status)
 {
@@ -402,6 +463,7 @@ void exit(int status)
   current->exit_state = status;
   thread_exit();
 }
+
 
 pid_t exec (const char *file)
 {
@@ -454,10 +516,12 @@ pid_t exec (const char *file)
   return pid;
 }
 
+
 int wait (pid_t pid)
 {
   return process_wait(pid);
 }
+
 
 bool create (const char *file, unsigned initial_size)
 {
@@ -468,6 +532,7 @@ bool create (const char *file, unsigned initial_size)
   return answer;
 }
 
+
 bool remove (const char *file)
 {
   bool answer;
@@ -476,6 +541,7 @@ bool remove (const char *file)
 
   return answer;
 }
+
 
 int open (const char *file)
 {
@@ -490,106 +556,90 @@ int open (const char *file)
 
   if(file_open != NULL && t->files != NULL)
   {
-
-     if (t->afid > 1023) {
-      if (isdir) {
-        dir_close(file_open);
-      } else {
-        file_close(file_open);
-      }
-      PANIC("valieron los file descriptors!!\n");
-    }
-
     fd.value = 0;
     fd.descriptor.isdir = isdir;
-    t->dirs[t->afid] = isdir;
-    fd.descriptor.is_fd = 1;
-    fd.descriptor.index = t->afid++;
-    stkcast(t->files + fd.descriptor.index*4, void *) = file_open;
+    allocate_file(t->files, &fd, file_open);
   }
 
   return fd.value;
 }
 
-int filesize (int fd)
+
+int sys_filesize (fd_t des)
 {
   struct thread *t = thread_current();
 
-  fd_t ffd;
-  ffd.value = fd;
-  unsigned i = ffd.descriptor.index;
+  void *target = NULL;
 
-  if (t->files == NULL || !ffd.descriptor.is_fd || ffd.descriptor.padding != 0) {
+  if (t->files == NULL || (target = get_file(t->files, des)) == NULL) {
     exit(-1);
   }
 
-  return file_length(stkcast(t->files + i*4, struct file *));
+  return file_length(target);
 }
 
-int read (int fd, void *buffer, unsigned length)
+
+int sys_read (fd_t des, void *buffer, unsigned length)
 {
 
   struct thread *t = thread_current();
-  unsigned i = ((fd_t) fd).descriptor.index;
 
-  if (t->files == NULL || i > 1023) {
+  if (t->files == NULL) {
     return 0;
   }
 
-  struct file *f = stkcast(t->files + i * 4, void *);
+  void *target = NULL;
 
-  if (f == NULL) {
+  if ((target = get_file(t->files, des)) == NULL) {
     exit(-1);
   }
 
-  off_t rlen = file_read(f, buffer, length);
+  off_t rlen = file_read(target, buffer, length);
   return rlen;
 }
 
-int write (int fd, const void *buffer, unsigned length)
+
+int sys_write (fd_t des, const void *buffer, unsigned length)
 {
   struct thread *t = thread_current();
-  fd_t fdes = (fd_t)fd;
-  struct file *f;
+  void *target;
 
-  if (t->files == NULL || !fdes.descriptor.is_fd || fdes.descriptor.padding != 0 ||
-      (f = stkcast(t->files + fdes.descriptor.index * 4, struct file*)) == NULL) {
+  if (t->files == NULL || (target = get_file(t->files, des)) == NULL) {
     exit(-1);
   }
 
-  if (fdes.descriptor.isdir) {
+  if (des.descriptor.isdir) {
       return -1;
   }
 
-  off_t written = file_write(f, buffer, length);
+  off_t written = file_write(target, buffer, length);
   return written;
 }
 
-void seek (int fd, unsigned position)
+
+void sys_seek (fd_t des, unsigned position)
 {
-  fd_t fdes = (fd_t)fd;
   struct thread *t = thread_current();
-  struct file *f;
-  if (t->files == NULL ||
-      !fdes.descriptor.is_fd || fdes.descriptor.padding != 0 ||
-      (f = stkcast(t->files + fdes.descriptor.index * 4, struct file *)) ==
-          NULL) {
+  void *target;
+  if (t->files == NULL || (target = get_file(t->files, des)) == NULL) {
     exit(-1);
   }
 
-  file_seek(f, position);
+  file_seek(target, position);
 }
 
-unsigned tell (int fd)
+
+unsigned sys_tell (fd_t des)
 {
-  fd_t fdes = (fd_t)fd;
   struct thread *t = thread_current();
-  if (t->files == NULL || !fdes.descriptor.is_fd ||
-      fdes.descriptor.padding != 0) {
+  void *target = NULL;
+  if (t->files == NULL || (target = get_file(t->files, des)) == NULL) {
     exit(-1);
   }
-  return file_tell(stkcast(t->files + fdes.descriptor.index * 4, void *));
+  return file_tell(target);
 }
+
+
 void sys_closef(void *f) 
 {
   lock_acquire(&filesys_lock);
@@ -607,27 +657,22 @@ void fsys_unlock(void)
   lock_release(&filesys_lock);
 }
 
-void close (int fd)
+void sys_close (fd_t des)
 {
-  fd_t fdes = (fd_t)fd;
   struct thread *t = thread_current();
-  void *f = stkcast(t->files + fdes.descriptor.index * 4, void *);
+  void *target = NULL;
 
-  if (t->files == NULL ||
-      !fdes.descriptor.is_fd || fdes.descriptor.padding != 0) {
+  if (t->files == NULL || (target = get_file(t->files, des)) == NULL) {
     exit(-1);
   }
 
-  if (f == NULL) {
-    return;
+  if (des.descriptor.isdir) {
+    dir_close(target);
+  } else {
+    file_close(target);
   }
 
-  if (fdes.descriptor.isdir) {
-    dir_close(f);
-  } else {
-    file_close(f);
-  }
-  stkcast(t->files + fdes.descriptor.index * 4, void *) = NULL;
+  stkcast(t->files + des.descriptor.index * 4, void *) = NULL;
 }
 
 #ifdef VM

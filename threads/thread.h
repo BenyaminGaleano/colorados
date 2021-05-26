@@ -122,7 +122,7 @@ struct thread
 
      /* FILESYS */
     struct dir *current_dir;              /* mark the current directory for thread */
-    bool dirs[1024]; 
+    bool dirs[512]; 
 
     /* OS */
 
