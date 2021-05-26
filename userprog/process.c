@@ -153,7 +153,6 @@ start_process (void *file_name_)
    */
 
   t->files = palloc_get_page(PAL_USER | PAL_ZERO);
-  t->afid = 0;
 
   if (t->files == NULL) success = 0;
   /** @colorados */
@@ -244,7 +243,7 @@ process_exit (void)
   }
 
   if (cur->files != NULL)
-    for (unsigned int i = 0; i < cur->afid + 1; i++) {
+    for (unsigned int i = 0; i < 512; i++) {
       if (stkcast(cur->files + i*4, void *) != NULL) {
           if (cur->dirs[i]) {
             dir_close(stkcast(cur->files + i * 4, struct dir *));

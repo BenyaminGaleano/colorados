@@ -109,8 +109,7 @@ struct thread
     
     struct file *exec_file;
     void *files;                        /* Pointer to a user page that contains pointers to files opens */
-    unsigned afid;                      /* available file id (sequential) */
-   
+
     void *childsexit;
     
     /* VM */
